@@ -1,130 +1,110 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React from 'react';
 import {
   Box,
-  Typography,
-  Avatar,
   Button,
-  TextField,
-  InputAdornment,
+  IconButton,
+  Menu,
+  MenuItem,
+  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  IconButton,
-  Chip,
+  Typography,
 } from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import FilterListIcon from '@mui/icons-material/FilterList';
+import { useRouter } from 'next/navigation';
+import { Patient } from '@/types/patient';
+import { PatientDetailsForm } from '@/components/PatientDetailsForm';
 
-interface Patient {
-  id: string;
-  name: string;
-  email: string;
-  lastVisit: string;
-  status: 'Active' | 'Scheduled' | 'Inactive';
-  avatar?: string;
-}
-
-const patients: Patient[] = [
+const mockPatients: Patient[] = [
   {
-    id: '12345',
-    name: 'Sarah Johnson',
-    email: 'sarah.j@email.com',
-    lastVisit: 'Jan 12, 2024',
-    status: 'Active',
-  },
-  {
-    id: '12346',
-    name: 'Michael Chen',
-    email: 'michael.c@email.com',
-    lastVisit: 'Jan 10, 2024',
-    status: 'Scheduled',
-  },
-  {
-    id: '12347',
-    name: 'Emily Brown',
-    email: 'emily.b@email.com',
-    lastVisit: 'Jan 9, 2024',
-    status: 'Inactive',
+    id: '1',
+    fullName: 'John Doe',
+    dateOfBirth: '1990-01-01',
+    gender: 'male',
+    nationalId: '123456789',
+    bloodType: 'A+',
+    maritalStatus: 'Single',
+    educationLevel: 'Bachelor',
+    phoneNumber: '123-456-7890',
+    email: 'john@example.com',
+    emergencyContact: {
+      name: 'Jane Doe',
+      relationship: 'Sister',
+      phoneNumber: '098-765-4321',
+    },
+    address: '123 Main St',
+    city: 'Anytown',
+    state: 'CA',
+    country: 'USA',
+    occupation: 'Engineer',
+    reasonForConsultation: 'Annual checkup',
+    diagnoses: [],
+    medicalHistory: {
+      chronicIllnesses: [],
+      allergies: [],
+      currentMedications: [],
+      previousTreatments: [],
+    },
+    familyHistory: '',
+    createdAt: '2024-01-01',
+    updatedAt: '2024-01-01',
   },
 ];
 
 export default function PatientsPage() {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [selectedPatient, setSelectedPatient] = React.useState<string | null>(null);
 
-  const filteredPatients = patients.filter(patient =>
-    patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, patientId: string) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedPatient(patientId);
+  };
 
-  const handlePatientClick = (patientId: string) => {
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedPatient(null);
+  };
+
+  const handleEdit = () => {
+    if (selectedPatient) {
+      router.push(`/patients/${selectedPatient}`);
+    }
+    handleMenuClose();
+  };
+
+  const handleDelete = () => {
+    // TODO: Implement delete functionality
+    handleMenuClose();
+  };
+
+  const handleSavePatient = () => {
+    // TODO: Implement save functionality
+    setIsFormOpen(false);
+  };
+
+  const handleRowClick = (patientId: string) => {
     router.push(`/patients/${patientId}`);
   };
 
-  const getStatusColor = (status: Patient['status']) => {
-    switch (status) {
-      case 'Active':
-        return {
-          color: '#4CAF50',
-          bgcolor: '#E8F5E9',
-        };
-      case 'Scheduled':
-        return {
-          color: '#2196F3',
-          bgcolor: '#E3F2FD',
-        };
-      default:
-        return {
-          color: '#9E9E9E',
-          bgcolor: '#F5F5F5',
-        };
-    }
-  };
-
   return (
-    <Box>
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h5">Patients</Typography>
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <Typography variant="h4">Patients</Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          sx={{ px: 3 }}
+          onClick={() => setIsFormOpen(true)}
         >
-          Add New Patient
-        </Button>
-      </Box>
-
-      <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
-        <TextField
-          fullWidth
-          placeholder="Search patients..."
-          variant="outlined"
-          size="small"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon color="action" />
-              </InputAdornment>
-            ),
-          }}
-        />
-        <Button
-          variant="outlined"
-          startIcon={<FilterListIcon />}
-          sx={{ minWidth: 100 }}
-        >
-          Filters
+          Add Patient
         </Button>
       </Box>
 
@@ -132,41 +112,42 @@ export default function PatientsPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Patient Name</TableCell>
-              <TableCell>Contact</TableCell>
-              <TableCell>Last Visit</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell>Date of Birth</TableCell>
+              <TableCell>Gender</TableCell>
+              <TableCell>National ID</TableCell>
+              <TableCell>Phone</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>City</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredPatients.map((patient) => (
-              <TableRow
+            {mockPatients.map((patient) => (
+              <TableRow 
                 key={patient.id}
-                hover
-                onClick={() => handlePatientClick(patient.id)}
-                sx={{ cursor: 'pointer' }}
+                onClick={() => patient.id && handleRowClick(patient.id)}
+                sx={{ 
+                  cursor: 'pointer',
+                  '&:hover': { backgroundColor: 'action.hover' }
+                }}
               >
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Avatar src={patient.avatar}>{patient.name[0]}</Avatar>
-                    <Typography>{patient.name}</Typography>
-                  </Box>
-                </TableCell>
+                <TableCell>{patient.fullName}</TableCell>
+                <TableCell>{patient.dateOfBirth}</TableCell>
+                <TableCell>{patient.gender}</TableCell>
+                <TableCell>{patient.nationalId}</TableCell>
+                <TableCell>{patient.phoneNumber}</TableCell>
                 <TableCell>{patient.email}</TableCell>
-                <TableCell>{patient.lastVisit}</TableCell>
+                <TableCell>{patient.city}</TableCell>
                 <TableCell>
-                  <Chip
-                    label={patient.status}
-                    size="small"
-                    sx={{
-                      ...getStatusColor(patient.status),
-                      fontWeight: 500,
+                  <IconButton
+                    onClick={(e) => {
+                      if (!patient.id) return;
+                      e.stopPropagation(); // Prevent row click when clicking menu
+                      handleMenuOpen(e, patient.id);
                     }}
-                  />
-                </TableCell>
-                <TableCell align="right">
-                  <IconButton size="small">
+                    size="small"
+                  >
                     <MoreVertIcon />
                   </IconButton>
                 </TableCell>
@@ -175,6 +156,22 @@ export default function PatientsPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={handleEdit}>Edit</MenuItem>
+        <MenuItem onClick={handleDelete}>Delete</MenuItem>
+      </Menu>
+
+      {isFormOpen && (
+        <PatientDetailsForm
+          onClose={() => setIsFormOpen(false)}
+          onSave={handleSavePatient}
+        />
+      )}
     </Box>
   );
 }

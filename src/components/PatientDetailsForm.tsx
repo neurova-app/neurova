@@ -1,428 +1,582 @@
-'use client';
+"use client";
 
-import React from 'react';
+import React from "react";
 import {
   Box,
   Grid,
   TextField,
   MenuItem,
   Typography,
-  Paper,
   Button,
-  Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
   IconButton,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import { Patient } from '@/types/patient';
+  DialogActions,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { Patient } from "@/types/patient";
 
-interface PatientDetailsFormProps {
-  patient?: Patient;
-  onSave: (patient: Partial<Patient>) => void;
-}
-
-const initialFormData: Partial<Patient> = {
-  fullName: '',
-  dateOfBirth: '',
-  gender: 'other',
-  nationalId: '',
-  phoneNumber: '',
-  email: '',
+const initialFormData: Patient = {
+  fullName: "",
+  dateOfBirth: "",
+  gender: "other",
+  nationalId: "",
+  bloodType: "",
+  maritalStatus: "",
+  educationLevel: "",
+  phoneNumber: "",
+  email: "",
   emergencyContact: {
-    name: '',
-    relationship: '',
-    phoneNumber: '',
+    name: "",
+    relationship: "",
+    phoneNumber: "",
   },
-  address: '',
-  city: '',
-  state: '',
-  country: '',
-  occupation: '',
-  reasonForConsultation: '',
+  address: "",
+  city: "",
+  state: "",
+  country: "",
+  occupation: "",
+  reasonForConsultation: "",
+  diagnoses: [],
   medicalHistory: {
-    chronicIllnesses: [''],
-    allergies: [''],
-    currentMedications: [''],
-    previousTreatments: [{ therapistName: '', duration: '', treatmentType: '' }],
+    chronicIllnesses: [""],
+    allergies: [""],
+    currentMedications: [""],
+    previousTreatments: [
+      { therapistName: "", duration: "", treatmentType: "" },
+    ],
   },
-  familyHistory: '',
+  familyHistory: "",
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  id: "",
 };
 
-export default function PatientDetailsForm({ patient, onSave }: PatientDetailsFormProps) {
-  const [formData, setFormData] = React.useState<Partial<Patient>>(patient || initialFormData);
+export const PatientDetailsForm = ({
+  patient,
+  onClose,
+  onSave,
+}: {
+  patient?: Patient;
+  onClose: () => void;
+  onSave: (patient: Patient) => void;
+}) => {
+  const [formData, setFormData] = React.useState<Patient>(
+    patient ?? initialFormData
+  );
 
-  const handleChange = (field: keyof Patient, value: string) => {
+  const handleInputChange = (field: keyof Patient, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
+      updatedAt: new Date().toISOString(),
     }));
   };
 
-  const handleArrayChange = (category: 'chronicIllnesses' | 'allergies' | 'currentMedications', index: number, value: string) => {
+  const handleNestedChange = (
+    parent: keyof Patient,
+    field: string,
+    value: string
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      [parent]: {
+        // @ts-expect-error ts(2345)
+        ...prev[parent],
+        [field]: value,
+      },
+      updatedAt: new Date().toISOString(),
+    }));
+  };
+
+  const handleArrayChange = (
+    field: keyof typeof formData.medicalHistory,
+    index: number,
+    value: string
+  ) => {
+    setFormData((prev) => {
+      const newArray = [...prev.medicalHistory[field]];
+      newArray[index] = value;
+      return {
+        ...prev,
+        medicalHistory: {
+          ...prev.medicalHistory,
+          [field]: newArray,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  };
+
+  const handleAddArrayItem = (field: keyof typeof formData.medicalHistory) => {
     setFormData((prev) => ({
       ...prev,
       medicalHistory: {
-        ...prev.medicalHistory!,
-        [category]: prev.medicalHistory![category].map((item, i) => (i === index ? value : item)),
+        ...prev.medicalHistory,
+        [field]: [...prev.medicalHistory[field], ""],
       },
+      updatedAt: new Date().toISOString(),
     }));
   };
 
-  const handleAddArrayItem = (category: 'chronicIllnesses' | 'allergies' | 'currentMedications') => {
+  const handleRemoveArrayItem = (
+    field: keyof typeof formData.medicalHistory,
+    index: number
+  ) => {
     setFormData((prev) => ({
       ...prev,
       medicalHistory: {
-        ...prev.medicalHistory!,
-        [category]: [...prev.medicalHistory![category], ''],
+        ...prev.medicalHistory,
+        [field]: prev.medicalHistory[field].filter((_, i) => i !== index),
       },
+      updatedAt: new Date().toISOString(),
     }));
   };
 
-  const handleRemoveArrayItem = (category: 'chronicIllnesses' | 'allergies' | 'currentMedications', index: number) => {
+  const handleAddDiagnosis = () => {
     setFormData((prev) => ({
       ...prev,
-      medicalHistory: {
-        ...prev.medicalHistory!,
-        [category]: prev.medicalHistory![category].filter((_, i) => i !== index),
-      },
+      diagnoses: [
+        ...prev.diagnoses,
+        { description: "", date: new Date().toISOString().split("T")[0] },
+      ],
+      updatedAt: new Date().toISOString(),
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
+  const handleDiagnosisChange = (
+    index: number,
+    field: string,
+    value: string
+  ) => {
+    setFormData((prev) => {
+      const newDiagnoses = [...prev.diagnoses];
+      newDiagnoses[index] = {
+        ...newDiagnoses[index],
+        [field]: value,
+      };
+      return {
+        ...prev,
+        diagnoses: newDiagnoses,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  };
+
+  const handleRemoveDiagnosis = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      diagnoses: prev.diagnoses.filter((_, i) => i !== index),
+      updatedAt: new Date().toISOString(),
+    }));
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {/* Basic Personal Information */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Basic Personal Information
-          </Typography>
+    <Dialog 
+      open 
+      maxWidth="md" 
+      fullWidth
+      onClose={onClose}
+    >
+      <DialogTitle>Edit Patient Details</DialogTitle>
+      <DialogContent>
+        <Box component="form" sx={{ mt: 2 }}>
           <Grid container spacing={3}>
+            {/* Personal Information */}
+            <Grid item xs={12}>
+              <Typography variant="h6" color="primary" gutterBottom>
+                Personal Information
+              </Typography>
+            </Grid>
             <Grid item xs={12} md={6}>
               <TextField
+                fullWidth
                 label="Full Name"
-                required
-                fullWidth
                 value={formData.fullName}
-                onChange={(e) => handleChange('fullName', e.target.value)}
+                onChange={(e) => handleInputChange("fullName", e.target.value)}
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
-                label="National ID (Cédula)"
-                required
                 fullWidth
-                value={formData.nationalId}
-                onChange={(e) => handleChange('nationalId', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                type="date"
                 label="Date of Birth"
-                required
-                fullWidth
-                InputLabelProps={{ shrink: true }}
+                type="date"
                 value={formData.dateOfBirth}
-                onChange={(e) => handleChange('dateOfBirth', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("dateOfBirth", e.target.value)
+                }
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 select
-                label="Gender"
-                required
                 fullWidth
+                label="Gender"
                 value={formData.gender}
-                onChange={(e) => handleChange('gender', e.target.value as Patient['gender'])}
+                onChange={(e) => handleInputChange("gender", e.target.value)}
               >
                 <MenuItem value="male">Male</MenuItem>
                 <MenuItem value="female">Female</MenuItem>
                 <MenuItem value="other">Other</MenuItem>
               </TextField>
             </Grid>
-          </Grid>
-        </Paper>
-
-        {/* Contact Information */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Contact Information
-          </Typography>
-          <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
               <TextField
-                label="Phone Number"
-                required
                 fullWidth
+                label="National ID"
+                value={formData.nationalId}
+                onChange={(e) =>
+                  handleInputChange("nationalId", e.target.value)
+                }
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Blood Type"
+                value={formData.bloodType}
+                onChange={(e) => handleInputChange("bloodType", e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Marital Status"
+                value={formData.maritalStatus}
+                onChange={(e) =>
+                  handleInputChange("maritalStatus", e.target.value)
+                }
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Education Level"
+                value={formData.educationLevel}
+                onChange={(e) =>
+                  handleInputChange("educationLevel", e.target.value)
+                }
+              />
+            </Grid>
+
+            {/* Contact Information */}
+            <Grid item xs={12}>
+              <Typography variant="h6" color="primary" gutterBottom>
+                Contact Information
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Phone Number"
                 value={formData.phoneNumber}
-                onChange={(e) => handleChange('phoneNumber', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("phoneNumber", e.target.value)
+                }
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
+                fullWidth
+                label="Email"
                 type="email"
-                label="Email Address"
-                required
-                fullWidth
                 value={formData.email}
-                onChange={(e) => handleChange('email', e.target.value)}
+                onChange={(e) => handleInputChange("email", e.target.value)}
               />
             </Grid>
-          </Grid>
 
-          <Typography variant="subtitle1" sx={{ mt: 3, mb: 2 }}>
-            Emergency Contact
-          </Typography>
-          <Grid container spacing={3}>
+            {/* Emergency Contact */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" gutterBottom>
+                Emergency Contact
+              </Typography>
+            </Grid>
             <Grid item xs={12} md={4}>
               <TextField
+                fullWidth
                 label="Name"
-                required
-                fullWidth
-                value={formData.emergencyContact?.name}
+                value={formData.emergencyContact.name}
                 onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    emergencyContact: {
-                      ...prev.emergencyContact!,
-                      name: e.target.value,
-                    },
-                  }))
+                  handleNestedChange("emergencyContact", "name", e.target.value)
                 }
               />
             </Grid>
             <Grid item xs={12} md={4}>
               <TextField
+                fullWidth
                 label="Relationship"
-                required
-                fullWidth
-                value={formData.emergencyContact?.relationship}
+                value={formData.emergencyContact.relationship}
                 onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    emergencyContact: {
-                      ...prev.emergencyContact!,
-                      relationship: e.target.value,
-                    },
-                  }))
+                  handleNestedChange(
+                    "emergencyContact",
+                    "relationship",
+                    e.target.value
+                  )
                 }
               />
             </Grid>
             <Grid item xs={12} md={4}>
               <TextField
+                fullWidth
                 label="Phone Number"
-                required
-                fullWidth
-                value={formData.emergencyContact?.phoneNumber}
+                value={formData.emergencyContact.phoneNumber}
                 onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    emergencyContact: {
-                      ...prev.emergencyContact!,
-                      phoneNumber: e.target.value,
-                    },
-                  }))
+                  handleNestedChange(
+                    "emergencyContact",
+                    "phoneNumber",
+                    e.target.value
+                  )
                 }
               />
             </Grid>
-          </Grid>
-        </Paper>
 
-        {/* Address and Demographics */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Address and Demographics
-          </Typography>
-          <Grid container spacing={3}>
+            {/* Address */}
+            <Grid item xs={12}>
+              <Typography variant="h6" color="primary" gutterBottom>
+                Address
+              </Typography>
+            </Grid>
             <Grid item xs={12}>
               <TextField
-                label="Residential Address"
                 fullWidth
+                label="Address"
                 value={formData.address}
-                onChange={(e) => handleChange('address', e.target.value)}
+                onChange={(e) => handleInputChange("address", e.target.value)}
               />
             </Grid>
             <Grid item xs={12} md={4}>
               <TextField
+                fullWidth
                 label="City"
-                required
-                fullWidth
                 value={formData.city}
-                onChange={(e) => handleChange('city', e.target.value)}
+                onChange={(e) => handleInputChange("city", e.target.value)}
               />
             </Grid>
             <Grid item xs={12} md={4}>
               <TextField
+                fullWidth
                 label="State"
-                required
-                fullWidth
                 value={formData.state}
-                onChange={(e) => handleChange('state', e.target.value)}
+                onChange={(e) => handleInputChange("state", e.target.value)}
               />
             </Grid>
             <Grid item xs={12} md={4}>
               <TextField
+                fullWidth
                 label="Country"
-                required
-                fullWidth
                 value={formData.country}
-                onChange={(e) => handleChange('country', e.target.value)}
+                onChange={(e) => handleInputChange("country", e.target.value)}
               />
             </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Occupation"
-                fullWidth
-                value={formData.occupation}
-                onChange={(e) => handleChange('occupation', e.target.value)}
-              />
-            </Grid>
-          </Grid>
-        </Paper>
 
-        {/* Clinical Information */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Clinical Information
-          </Typography>
-          <Grid container spacing={3}>
+            {/* Medical Information */}
+            <Grid item xs={12}>
+              <Typography variant="h6" color="primary" gutterBottom>
+                Medical Information
+              </Typography>
+            </Grid>
             <Grid item xs={12}>
               <TextField
-                label="Reason for Consultation"
+                fullWidth
                 multiline
                 rows={3}
-                required
-                fullWidth
+                label="Reason for Consultation"
                 value={formData.reasonForConsultation}
-                onChange={(e) => handleChange('reasonForConsultation', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("reasonForConsultation", e.target.value)
+                }
               />
             </Grid>
-          </Grid>
 
-          <Typography variant="subtitle1" sx={{ mt: 3, mb: 2 }}>
-            Medical History
-          </Typography>
-
-          {/* Chronic Illnesses */}
-          <Box sx={{ mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <Typography variant="subtitle2">Chronic Illnesses</Typography>
-              <IconButton
-                size="small"
-                onClick={() => handleAddArrayItem('chronicIllnesses')}
-                sx={{ ml: 1 }}
+            {/* Diagnoses */}
+            <Grid item xs={12}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
               >
-                <AddIcon />
-              </IconButton>
-            </Box>
-            {formData.medicalHistory?.chronicIllnesses.map((illness, index) => (
-              <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                <TextField
-                  fullWidth
+                <Typography variant="subtitle1">Diagnoses</Typography>
+                <Button
                   size="small"
-                  value={illness}
-                  onChange={(e) => handleArrayChange('chronicIllnesses', index, e.target.value)}
-                />
-                <IconButton
-                  size="small"
-                  onClick={() => handleRemoveArrayItem('chronicIllnesses', index)}
+                  startIcon={<AddIcon />}
+                  onClick={handleAddDiagnosis}
                 >
-                  <DeleteIcon />
-                </IconButton>
+                  Add Diagnosis
+                </Button>
               </Box>
-            ))}
-          </Box>
+              {formData.diagnoses.map((diagnosis, index) => (
+                <Box key={index} sx={{ display: "flex", gap: 2, mb: 2 }}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={8}
+                    label="Diagnosis"
+                    value={diagnosis.description}
+                    onChange={(e) =>
+                      handleDiagnosisChange(
+                        index,
+                        "description",
+                        e.target.value
+                      )
+                    }
+                  />
 
-          {/* Allergies */}
-          <Box sx={{ mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <Typography variant="subtitle2">Allergies</Typography>
-              <IconButton
-                size="small"
-                onClick={() => handleAddArrayItem('allergies')}
-                sx={{ ml: 1 }}
+                  <IconButton
+                    color="error"
+                    onClick={() => handleRemoveDiagnosis(index)}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+              ))}
+            </Grid>
+
+            {/* Medical History */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle1">Medical History</Typography>
+            </Grid>
+
+            {/* Chronic Illnesses */}
+            <Grid item xs={12}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
               >
-                <AddIcon />
-              </IconButton>
-            </Box>
-            {formData.medicalHistory?.allergies.map((allergy, index) => (
-              <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                <TextField
-                  fullWidth
+                <Typography variant="subtitle2">Chronic Illnesses</Typography>
+                <Button
                   size="small"
-                  value={allergy}
-                  onChange={(e) => handleArrayChange('allergies', index, e.target.value)}
-                />
-                <IconButton
-                  size="small"
-                  onClick={() => handleRemoveArrayItem('allergies', index)}
+                  startIcon={<AddIcon />}
+                  onClick={() => handleAddArrayItem("chronicIllnesses")}
                 >
-                  <DeleteIcon />
-                </IconButton>
+                  Add
+                </Button>
               </Box>
-            ))}
-          </Box>
+              {formData.medicalHistory.chronicIllnesses.map(
+                (illness, index) => (
+                  <Box key={index} sx={{ display: "flex", gap: 2, mb: 2 }}>
+                    <TextField
+                      fullWidth
+                      label="Illness"
+                      value={illness}
+                      onChange={(e) =>
+                        handleArrayChange(
+                          "chronicIllnesses",
+                          index,
+                          e.target.value
+                        )
+                      }
+                    />
+                    <IconButton
+                      color="error"
+                      onClick={() =>
+                        handleRemoveArrayItem("chronicIllnesses", index)
+                      }
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                )
+              )}
+            </Grid>
 
-          {/* Current Medications */}
-          <Box sx={{ mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <Typography variant="subtitle2">Current Medications</Typography>
-              <IconButton
-                size="small"
-                onClick={() => handleAddArrayItem('currentMedications')}
-                sx={{ ml: 1 }}
+            {/* Allergies */}
+            <Grid item xs={12}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
               >
-                <AddIcon />
-              </IconButton>
-            </Box>
-            {formData.medicalHistory?.currentMedications.map((medication, index) => (
-              <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                <TextField
-                  fullWidth
+                <Typography variant="subtitle2">Allergies</Typography>
+                <Button
                   size="small"
-                  value={medication}
-                  onChange={(e) => handleArrayChange('currentMedications', index, e.target.value)}
-                />
-                <IconButton
-                  size="small"
-                  onClick={() => handleRemoveArrayItem('currentMedications', index)}
+                  startIcon={<AddIcon />}
+                  onClick={() => handleAddArrayItem("allergies")}
                 >
-                  <DeleteIcon />
-                </IconButton>
+                  Add
+                </Button>
               </Box>
-            ))}
-          </Box>
+              {formData.medicalHistory.allergies.map((allergy, index) => (
+                <Box key={index} sx={{ display: "flex", gap: 2, mb: 2 }}>
+                  <TextField
+                    fullWidth
+                    label="Allergy"
+                    value={allergy}
+                    onChange={(e) =>
+                      handleArrayChange("allergies", index, e.target.value)
+                    }
+                  />
+                  <IconButton
+                    color="error"
+                    onClick={() => handleRemoveArrayItem("allergies", index)}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+              ))}
+            </Grid>
 
-          <Divider sx={{ my: 3 }} />
+            {/* Current Medications */}
+            <Grid item xs={12}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+              >
+                <Typography variant="subtitle2">Current Medications</Typography>
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() => handleAddArrayItem("currentMedications")}
+                >
+                  Add
+                </Button>
+              </Box>
+              {formData.medicalHistory.currentMedications.map(
+                (medication, index) => (
+                  <Box key={index} sx={{ display: "flex", gap: 2, mb: 2 }}>
+                    <TextField
+                      fullWidth
+                      label="Medication"
+                      value={medication}
+                      onChange={(e) =>
+                        handleArrayChange(
+                          "currentMedications",
+                          index,
+                          e.target.value
+                        )
+                      }
+                    />
+                    <IconButton
+                      color="error"
+                      onClick={() =>
+                        handleRemoveArrayItem("currentMedications", index)
+                      }
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                )
+              )}
+            </Grid>
 
-          {/* Family History */}
-          <Grid container spacing={3}>
+            {/* Family History */}
             <Grid item xs={12}>
               <TextField
-                label="Family Medical and Psychological History"
-                multiline
-                rows={4}
                 fullWidth
+                multiline
+                rows={3}
+                label="Family History"
                 value={formData.familyHistory}
-                onChange={(e) => handleChange('familyHistory', e.target.value)}
-                helperText="Include known hereditary conditions (mental health, chronic diseases)"
+                onChange={(e) =>
+                  handleInputChange("familyHistory", e.target.value)
+                }
               />
             </Grid>
           </Grid>
-        </Paper>
-
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-          <Button variant="outlined">Cancel</Button>
-          <Button type="submit" variant="contained">
-            Save Patient Information
-          </Button>
         </Box>
-      </Box>
-    </form>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={() => onSave(formData)}>
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
-}
+};

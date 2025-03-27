@@ -882,7 +882,7 @@ const PatientDetailsForm = ({
   };
 
   return (
-    <Dialog open maxWidth="md" fullWidth>
+    <Dialog open maxWidth="md" fullWidth onClose={onClose}>
       <DialogTitle>Edit Patient Details</DialogTitle>
       <DialogContent>
         <Box component="form" sx={{ mt: 2 }}>

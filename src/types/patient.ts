@@ -16,38 +16,42 @@ export interface MedicalHistory {
 }
 
 export interface Patient {
-  // Basic Personal Information
-  id: string;
+  id?: string;
   fullName: string;
   dateOfBirth: string;
   gender: 'male' | 'female' | 'other';
   nationalId: string;
-  bloodType: string; 
+  bloodType: string;
   maritalStatus: string;
   educationLevel: string;
-
-  // Contact Information
   phoneNumber: string;
   email: string;
-  emergencyContact: EmergencyContact;
-
-  // Address and Demographics
-  address?: string;
+  emergencyContact: {
+    name: string;
+    relationship: string;
+    phoneNumber: string;
+  };
+  address: string;
   city: string;
   state: string;
   country: string;
   occupation: string;
-
-  // Clinical Information
   reasonForConsultation: string;
-  diagnoses: {
+  diagnoses: Array<{
     description: string;
     date: string;
-  }[];
-  medicalHistory: MedicalHistory;
+  }>;
+  medicalHistory: {
+    chronicIllnesses: string[];
+    allergies: string[];
+    currentMedications: string[];
+    previousTreatments: Array<{
+      therapistName: string;
+      duration: string;
+      treatmentType: string;
+    }>;
+  };
   familyHistory: string;
-
-  // Metadata
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

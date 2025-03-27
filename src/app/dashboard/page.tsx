@@ -1,12 +1,16 @@
 "use client";
 
 import React from "react";
-import { Box, Grid, Card, Typography, Avatar, Button } from "@mui/material";
+import { Box, Grid, Card, Typography, Avatar, Button, Dialog, DialogTitle, DialogContent } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AddIcon from "@mui/icons-material/Add";
 import { useRouter } from "next/navigation";
+import AppointmentForm from "@/components/AppointmentForm";
+import { Patient } from "@/types/patient";
+import { Appointment } from "@/types";
+import { PatientDetailsForm } from "@/components/PatientDetailsForm";
 
 interface OverviewItem {
   label: string;
@@ -27,14 +31,6 @@ interface RecentPatient {
   nextAppointment: string;
 }
 
-interface Appointment {
-  id: string;
-  patientName: string;
-  type: string;
-  time: string;
-  duration: number;
-}
-
 const overviewItems: OverviewItem[] = [
   { label: "Appointments", value: "8", color: "#4A90E2" },
   { label: "Pending Tasks", value: "3", color: "#50C878" },
@@ -51,24 +47,36 @@ const recentPatients: RecentPatient[] = [
 const upcomingAppointments: Appointment[] = [
   {
     id: "1",
+    patientId: "1",
     patientName: "Sarah Johnson",
     type: "Cognitive Behavioral Therapy",
-    time: "2:00 PM",
+    date: "2024-03-26",
+    startTime: "14:00",
+    endTime: "14:45",
     duration: 45,
+    status: "scheduled",
   },
   {
     id: "2",
-    patientName: "Sarah Johnson",
-    type: "Cognitive Behavioral Therapy",
-    time: "2:00 PM",
+    patientId: "2",
+    patientName: "Emily Parker",
+    type: "Initial Consultation",
+    date: "2024-03-26",
+    startTime: "15:00",
+    endTime: "15:45",
     duration: 45,
+    status: "scheduled",
   },
   {
     id: "3",
-    patientName: "Sarah Johnson",
-    type: "Cognitive Behavioral Therapy",
-    time: "2:00 PM",
+    patientId: "3",
+    patientName: "Michael Brown",
+    type: "Follow-up",
+    date: "2024-03-26",
+    startTime: "16:00",
+    endTime: "16:45",
     duration: 45,
+    status: "scheduled",
   },
 ];
 
@@ -79,7 +87,6 @@ const notifications: Notification[] = [
     time: "35m ago",
     type: "appointment",
   },
-
   {
     id: "3",
     message: "System maintenance scheduled for tonight",
@@ -90,6 +97,24 @@ const notifications: Notification[] = [
 
 export default function DashboardPage() {
   const router = useRouter();
+  const [isNewPatientOpen, setIsNewPatientOpen] = React.useState(false);
+  const [isNewAppointmentOpen, setIsNewAppointmentOpen] = React.useState(false);
+
+  const handleNewPatient = (patient: Partial<Patient>) => {
+    console.log("New patient:", patient);
+    setIsNewPatientOpen(false);
+    // TODO: Implement API call to save patient
+  };
+
+  const handleClose = () => {
+    setIsNewPatientOpen(false);
+    setIsNewAppointmentOpen(false);
+  };
+  const handleNewAppointment = (appointment: Appointment) => {
+    console.log("New appointment:", appointment);
+    setIsNewAppointmentOpen(false);
+    // TODO: Implement API call to save appointment
+  };
 
   const getNextFourHours = () => {
     const now = new Date();
@@ -228,13 +253,8 @@ export default function DashboardPage() {
                 <Typography variant="subtitle2">Sarah Johnson</Typography>
                 <Button
                   onClick={() => {
-                    router.push(
-                      `/patients/12345?tab=2`
-                    );
-                    window.open(
-                      "https://meet.google.com/auz-djks-zuk",
-                      "_blank"
-                    );
+                    router.push(`/patients/12345?tab=2`);
+                    window.open("https://meet.google.com/auz-djks-zuk", "_blank");
                   }}
                 >
                   Start Session
@@ -279,7 +299,7 @@ export default function DashboardPage() {
                 </Box>
                 <Box sx={{ textAlign: "right" }}>
                   <Typography variant="subtitle2" color="primary">
-                    {appointment.time}
+                    {appointment.startTime}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {appointment.duration} min
@@ -343,14 +363,56 @@ export default function DashboardPage() {
             variant="contained"
             startIcon={<AddIcon />}
             sx={{ mb: 2 }}
+            onClick={() => setIsNewAppointmentOpen(true)}
           >
             New Appointment
           </Button>
-          <Button fullWidth variant="outlined" startIcon={<PersonAddIcon />}>
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<PersonAddIcon />}
+            onClick={() => setIsNewPatientOpen(true)}
+          >
             Add Patient
           </Button>
         </Card>
       </Grid>
+
+      {/* New Patient Dialog */}
+      <Dialog
+        open={isNewPatientOpen}
+        onClose={() => setIsNewPatientOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Add New Patient</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <PatientDetailsForm
+              onSave={handleNewPatient}
+              onClose={handleClose}
+            />
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Appointment Dialog */}
+      <Dialog
+        open={isNewAppointmentOpen}
+        onClose={() => setIsNewAppointmentOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Schedule New Appointment</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <AppointmentForm
+              onClose={() => setIsNewAppointmentOpen(false)}
+              onSave={handleNewAppointment}
+            />
+          </Box>
+        </DialogContent>
+      </Dialog>
     </Grid>
   );
 }
