@@ -21,6 +21,7 @@ export interface Patient {
   dateOfBirth: string;
   gender: 'male' | 'female' | 'other';
   nationalId: string;
+  profilePicture?: string;
   bloodType: string;
   maritalStatus: string;
   educationLevel: string;

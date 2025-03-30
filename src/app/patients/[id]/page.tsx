@@ -20,7 +20,6 @@ import {
   InputAdornment,
   ListItemButton,
   Grid,
-  Avatar
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import SearchIcon from "@mui/icons-material/Search";
@@ -31,6 +30,7 @@ import { useSearchParams, useParams } from "next/navigation";
 import { usePatients } from "@/contexts/PatientContext";
 import { useSnackbar } from "notistack";
 import { PatientDetailsForm } from "@/components/PatientDetailsForm";
+import PatientProfilePictureUpload from "@/components/PatientProfilePictureUpload";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -110,8 +110,6 @@ export default function PatientDetailPage() {
     setTabValue(newValue);
   };
 
-
-
   const handleRecordSelect = (record: MedicalRecord) => {
     setSelectedRecord(record);
     setNotes(record.notes);
@@ -129,24 +127,24 @@ export default function PatientDetailPage() {
   };
 
   const patientId = params.id as string;
-  
+
   // Find the patient by ID or by slug
   const patient = patients.find((p) => {
     // If the URL parameter is a UUID, match directly
     if (patientId.includes('-') && p.id === patientId) {
       return true;
     }
-    
+
     // Otherwise, check if it's a slug that contains the patient's name and ID
     if (p.id && p.fullName) {
       // Extract the ID suffix from the slug (last part after the last hyphen)
       const slugParts = patientId.split('-');
       const idSuffix = slugParts[slugParts.length - 1];
-      
+
       // Check if the ID starts with this suffix
       return p.id.startsWith(idSuffix);
     }
-    
+
     return false;
   });
 
@@ -182,20 +180,15 @@ export default function PatientDetailPage() {
         <Grid item xs={12} md={3}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <Box sx={{ textAlign: "center" }}>
-              <Avatar
-                src="/sarah-johnson.jpg"
-                sx={{
-                  width: 120,
-                  height: 120,
-                  mx: "auto",
-                  mb: 2,
+              <PatientProfilePictureUpload
+                currentImageUrl={patient.profilePicture || ""}
+                patientId={patient.id || ""}
+                fullName={patient.fullName}
+                onImageUploaded={(url) => {
+                  // This is handled by the component internally
+                  console.log("Patient profile picture updated:", url);
                 }}
-              >
-                {patient.fullName
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")}
-              </Avatar>
+              />
               <Typography variant="h6">{patient.fullName}</Typography>
               <Typography variant="body2" color="text.secondary">
                 Patient ID: #{patient.id}

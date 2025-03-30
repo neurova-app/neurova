@@ -18,6 +18,7 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
+  Avatar,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -151,6 +152,7 @@ export default function PatientsPage() {
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell>Profile</TableCell>
                 <TableCell>Name</TableCell>
                 <TableCell>Date of Birth</TableCell>
                 <TableCell>Gender</TableCell>
@@ -171,6 +173,17 @@ export default function PatientsPage() {
                     "&:hover": { backgroundColor: "action.hover" },
                   }}
                 >
+                  <TableCell>
+                    <Avatar
+                      src={patient.profilePicture || ""}
+                      sx={{ width: 40, height: 40 }}
+                    >
+                      {patient.fullName
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </Avatar>
+                  </TableCell>
                   <TableCell>{patient.fullName}</TableCell>
                   <TableCell>{patient.dateOfBirth}</TableCell>
                   <TableCell>{patient.gender}</TableCell>
