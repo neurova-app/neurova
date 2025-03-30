@@ -15,9 +15,21 @@ interface TherapistProfile {
   specialty?: string;
   bio?: string;
   education?: string;
-  years_experience?: number;
+  years_of_experience?: number;
   created_at?: string;
   updated_at?: string;
+  profile_picture?: string;
+  phone_number?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  country?: string;
+  insurance_providers?: string[];
+  languages_spoken?: string[];
+  certifications?: string[];
+  licenses?: string[];
+  license_number?: string;
 }
 
 // Helper function to convert camelCase to snake_case
@@ -302,17 +314,46 @@ export const therapistOperations = {
   // Create or update therapist profile
   upsertTherapistProfile: async (userId: string, profileData: Partial<TherapistProfile>) => {
     try {
-      const { data, error } = await supabase
+      // Check if a profile exists for the user
+      const { data: existingProfile, error: existingError } = await supabase
         .from(TABLES.THERAPISTS)
-        .upsert({
-          user_id: userId,
-          ...profileData,
-          updated_at: new Date().toISOString(),
-        })
-        .select();
+        .select('id')
+        .eq('user_id', userId)
+        .single();
 
-      if (error) throw error;
-      return data?.[0] as TherapistProfile;
+      if (existingError) {
+        console.error('Error checking for existing therapist profile:', existingError);
+        throw existingError;
+      }
+
+      if (existingProfile && existingProfile.id) {
+        // Update the existing profile
+        const { data, error } = await supabase
+          .from(TABLES.THERAPISTS)
+          .update({
+            ...profileData,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingProfile.id)
+          .select();
+
+        if (error) throw error;
+        return data?.[0] as TherapistProfile;
+      } else {
+        // Create a new profile
+        const { data, error } = await supabase
+          .from(TABLES.THERAPISTS)
+          .insert({
+            user_id: userId,
+            ...profileData,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select();
+
+        if (error) throw error;
+        return data?.[0] as TherapistProfile;
+      }
     } catch (error) {
       console.error('Error updating therapist profile:', error);
       throw error;

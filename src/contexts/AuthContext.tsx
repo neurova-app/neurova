@@ -13,6 +13,7 @@ interface AuthContextType {
   signup: (email: string, password: string, userData: Partial<User>) => Promise<{ error: AuthError | null }>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
+  updateUserProfile: (userData: Partial<User>) => Promise<{ error: AuthError | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -155,6 +156,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateUserProfile = async (userData: Partial<User>) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          name: userData.name ?? '',
+          role: userData.role ?? '',
+          avatar_url: userData.avatar ?? '',
+        },
+      });
+      
+      if (!error && user) {
+        // Update the local user state with the new data
+        setUser({
+          ...user,
+          name: userData.name || user.name,
+          role: userData.role || user.role,
+          avatar: userData.avatar || user.avatar,
+        });
+      }
+      
+      return { error };
+    } catch (error) {
+      console.error('Update user profile error:', error);
+      return { error: error as AuthError };
+    }
+  };
+
   const value = {
     isAuthenticated,
     user,
@@ -162,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signup,
     logout,
     resetPassword,
+    updateUserProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
