@@ -659,15 +659,18 @@ export default function PatientDetailPage() {
                               </Box>
                             }
                             secondary={
-                              <>
-                                <Chip
-                                  label={record.type}
-                                  size="small"
-                                  color={getTypeColor(record.type)}
-                                  sx={{ my: 0.5 }}
-                                />
+                              <Box component="div">
+                                <Box component="span" sx={{ display: 'inline-block' }}>
+                                  <Chip
+                                    label={record.type}
+                                    size="small"
+                                    color={getTypeColor(record.type)}
+                                    sx={{ my: 0.5 }}
+                                  />
+                                </Box>
                                 <Typography
                                   variant="body2"
+                                  component="span"
                                   color="text.secondary"
                                   sx={{
                                     overflow: "hidden",
@@ -679,7 +682,7 @@ export default function PatientDetailPage() {
                                 >
                                   {record.notes}
                                 </Typography>
-                              </>
+                              </Box>
                             }
                           />
                         </ListItemButton>

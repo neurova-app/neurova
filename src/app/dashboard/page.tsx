@@ -163,40 +163,6 @@ export default function DashboardPage() {
             </Box>
           ))}
         </Card>
-
-        <Card sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Recent Patients
-          </Typography>
-          {recentPatients.map((patient) => (
-            <Box
-              key={patient.id}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                mb: 2,
-                cursor: "pointer",
-                "&:hover": { bgcolor: "action.hover" },
-                p: 1,
-                borderRadius: 1,
-              }}
-              onClick={() => router.push(`/patients/${patient.id}?tab=1`)}
-            >
-              <Avatar sx={{ mr: 2 }}>{patient.name.charAt(0)}</Avatar>
-              <Box>
-                <Typography variant="subtitle2">{patient.name}</Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                >
-                  <AccessTimeIcon sx={{ fontSize: 16 }} />
-                  {patient.nextAppointment}
-                </Typography>
-              </Box>
-            </Box>
-          ))}
-        </Card>
       </Grid>
 
       {/* Middle Column - Calendar */}
