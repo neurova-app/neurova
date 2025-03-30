@@ -261,6 +261,14 @@ export const PatientDetailsForm = ({
                 }
               />
             </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Occupation"
+                value={formData.occupation}
+                onChange={(e) => handleInputChange("occupation", e.target.value)}
+              />
+            </Grid>
 
             {/* Contact Information */}
             <Grid item xs={12}>

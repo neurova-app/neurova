@@ -25,6 +25,7 @@ import {
   DialogActions,
   MenuItem,
   Paper,
+  CircularProgress,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import SearchIcon from "@mui/icons-material/Search";
@@ -33,7 +34,9 @@ import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { Patient } from "@/types/patient";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useParams } from "next/navigation";
+import { usePatients } from "@/contexts/PatientContext";
+import { useSnackbar } from "notistack";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -65,53 +68,7 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-// Mock patient data
-const mockPatient: Patient = {
-  id: "12345",
-  fullName: "Sarah Johnson",
-  dateOfBirth: "1985-03-15",
-  gender: "female",
-  nationalId: "123456789",
-  bloodType: "O+",
-  maritalStatus: "Married",
-  educationLevel: "University",
-  phoneNumber: "(555) 123-4567",
-  email: "sarah.j@email.com",
-  emergencyContact: {
-    name: "John Johnson",
-    relationship: "Spouse",
-    phoneNumber: "(555) 987-6543",
-  },
-  address: "123 Main St",
-  city: "Springfield",
-  state: "IL",
-  country: "USA",
-  occupation: "Teacher",
-  reasonForConsultation: "Anxiety and stress management",
-  diagnoses: [
-    {
-      description: "Generalized Anxiety Disorder",
-      date: "2024-03-26",
-    },
-  ],
-  medicalHistory: {
-    chronicIllnesses: ["Asthma", "Migraine"],
-    allergies: ["Penicillin", "Pollen"],
-    currentMedications: ["Albuterol inhaler", "Sumatriptan"],
-    previousTreatments: [
-      {
-        therapistName: "Dr. Smith",
-        duration: "6 months",
-        treatmentType: "CBT",
-      },
-    ],
-  },
-  familyHistory: "Mother: Depression, Father: Hypertension",
-  createdAt: "2024-01-01",
-  updatedAt: "2024-03-26",
-};
-
-// Mock records data
+// Mock records data for now - we'll implement this later
 const mockRecords: MedicalRecord[] = [
   {
     id: 1,
@@ -142,20 +99,39 @@ const getTypeColor = (type: string) => {
 
 export default function PatientDetailPage() {
   const searchParams = useSearchParams();
+  const params = useParams();
+  const { patients, loading, error, updatePatient } = usePatients();
+  const { enqueueSnackbar } = useSnackbar();
+
   const initialTab = searchParams.get("tab");
-  const [tabValue, setTabValue] = React.useState(initialTab ? parseInt(initialTab) : 0);
+  const [tabValue, setTabValue] = React.useState(
+    initialTab ? parseInt(initialTab) : 0
+  );
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
-  const [selectedRecord, setSelectedRecord] = React.useState<MedicalRecord | null>(null);
+  const [selectedRecord, setSelectedRecord] =
+    React.useState<MedicalRecord | null>(null);
   const [notes, setNotes] = React.useState("");
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
-  const handleSave = (patientData: Patient) => {
-    console.log(patientData)
-    setIsEditDialogOpen(false);
-    // TODO: Implement save logic
+  const handleSave = async (patientData: Patient) => {
+    try {
+      if (!patientData.id) {
+        throw new Error("Patient ID is required");
+      }
+      await updatePatient(patientData.id, patientData);
+      setIsEditDialogOpen(false);
+      enqueueSnackbar("Patient information updated successfully", {
+        variant: "success",
+      });
+    } catch (err) {
+      console.error("Error updating patient:", err);
+      enqueueSnackbar("Failed to update patient information", {
+        variant: "error",
+      });
+    }
   };
 
   const handleRecordSelect = (record: MedicalRecord) => {
@@ -174,6 +150,34 @@ export default function PatientDetailPage() {
     return age;
   };
 
+  const patientId = params.id as string;
+  const patient = patients.find((patient) => patient.id === patientId);
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    enqueueSnackbar("Error loading patient data", { variant: "error" });
+    return null;
+  }
+
+  if (!patient) {
+    enqueueSnackbar("Patient not found", { variant: "error" });
+    return null;
+  }
+
   return (
     <Box>
       <Grid container spacing={3}>
@@ -190,14 +194,14 @@ export default function PatientDetailPage() {
                   mb: 2,
                 }}
               >
-                {mockPatient.fullName
+                {patient.fullName
                   .split(" ")
                   .map((n) => n[0])
                   .join("")}
               </Avatar>
-              <Typography variant="h6">{mockPatient.fullName}</Typography>
+              <Typography variant="h6">{patient.fullName}</Typography>
               <Typography variant="body2" color="text.secondary">
-                Patient ID: #{mockPatient.id}
+                Patient ID: #{patient.id}
               </Typography>
               <Button
                 variant="outlined"
@@ -259,7 +263,7 @@ export default function PatientDetailPage() {
                         Full Name
                       </Typography>
                       <Typography variant="body1">
-                        {mockPatient.fullName}
+                        {patient.fullName}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -267,7 +271,7 @@ export default function PatientDetailPage() {
                         Date of Birth (Age)
                       </Typography>
                       <Typography variant="body1">
-                        {new Date(mockPatient.dateOfBirth).toLocaleDateString(
+                        {new Date(patient.dateOfBirth).toLocaleDateString(
                           "en-US",
                           {
                             year: "numeric",
@@ -275,7 +279,7 @@ export default function PatientDetailPage() {
                             day: "numeric",
                           }
                         )}{" "}
-                        ({calculateAge(mockPatient.dateOfBirth)} years)
+                        ({calculateAge(patient.dateOfBirth)} years)
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -286,7 +290,7 @@ export default function PatientDetailPage() {
                         variant="body1"
                         sx={{ textTransform: "capitalize" }}
                       >
-                        {mockPatient.gender}
+                        {patient.gender}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -294,7 +298,7 @@ export default function PatientDetailPage() {
                         National ID (Cédula)
                       </Typography>
                       <Typography variant="body1">
-                        {mockPatient.nationalId}
+                        {patient.nationalId}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -302,7 +306,7 @@ export default function PatientDetailPage() {
                         Blood Type (RH)
                       </Typography>
                       <Typography variant="body1" sx={{ fontWeight: "medium" }}>
-                        {mockPatient.bloodType}
+                        {patient.bloodType}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -310,7 +314,7 @@ export default function PatientDetailPage() {
                         Marital Status
                       </Typography>
                       <Typography variant="body1">
-                        {mockPatient.maritalStatus}
+                        {patient.maritalStatus}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -318,7 +322,15 @@ export default function PatientDetailPage() {
                         Education Level
                       </Typography>
                       <Typography variant="body1">
-                        {mockPatient.educationLevel}
+                        {patient.educationLevel}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Occupation
+                      </Typography>
+                      <Typography variant="body1">
+                        {patient.occupation}
                       </Typography>
                     </Grid>
                   </Grid>
@@ -335,16 +347,14 @@ export default function PatientDetailPage() {
                         Phone Number
                       </Typography>
                       <Typography variant="body1">
-                        {mockPatient.phoneNumber}
+                        {patient.phoneNumber}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
                       <Typography variant="body2" color="text.secondary">
                         Email Address
                       </Typography>
-                      <Typography variant="body1">
-                        {mockPatient.email}
-                      </Typography>
+                      <Typography variant="body1">{patient.email}</Typography>
                     </Grid>
                   </Grid>
 
@@ -358,7 +368,7 @@ export default function PatientDetailPage() {
                           Name
                         </Typography>
                         <Typography variant="body1">
-                          {mockPatient.emergencyContact.name}
+                          {patient.emergencyContact.name}
                         </Typography>
                       </Grid>
                       <Grid item xs={12} md={4}>
@@ -366,7 +376,7 @@ export default function PatientDetailPage() {
                           Relationship
                         </Typography>
                         <Typography variant="body1">
-                          {mockPatient.emergencyContact.relationship}
+                          {patient.emergencyContact.relationship}
                         </Typography>
                       </Grid>
                       <Grid item xs={12} md={4}>
@@ -374,7 +384,7 @@ export default function PatientDetailPage() {
                           Phone Number
                         </Typography>
                         <Typography variant="body1">
-                          {mockPatient.emergencyContact.phoneNumber}
+                          {patient.emergencyContact.phoneNumber}
                         </Typography>
                       </Grid>
                     </Grid>
@@ -392,40 +402,26 @@ export default function PatientDetailPage() {
                         Residential Address
                       </Typography>
                       <Typography variant="body1">
-                        {mockPatient.address || "Not provided"}
+                        {patient.address || "Not provided"}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={4}>
                       <Typography variant="body2" color="text.secondary">
                         City
                       </Typography>
-                      <Typography variant="body1">
-                        {mockPatient.city}
-                      </Typography>
+                      <Typography variant="body1">{patient.city}</Typography>
                     </Grid>
                     <Grid item xs={12} md={4}>
                       <Typography variant="body2" color="text.secondary">
                         State
                       </Typography>
-                      <Typography variant="body1">
-                        {mockPatient.state}
-                      </Typography>
+                      <Typography variant="body1">{patient.state}</Typography>
                     </Grid>
                     <Grid item xs={12} md={4}>
                       <Typography variant="body2" color="text.secondary">
                         Country
                       </Typography>
-                      <Typography variant="body1">
-                        {mockPatient.country}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12}>
-                      <Typography variant="body2" color="text.secondary">
-                        Occupation
-                      </Typography>
-                      <Typography variant="body1">
-                        {mockPatient.occupation}
-                      </Typography>
+                      <Typography variant="body1">{patient.country}</Typography>
                     </Grid>
                   </Grid>
                 </Box>
@@ -463,7 +459,7 @@ export default function PatientDetailPage() {
                       Reason for Consultation
                     </Typography>
                     <Typography variant="body1">
-                      {mockPatient.reasonForConsultation}
+                      {patient.reasonForConsultation}
                     </Typography>
                   </Box>
 
@@ -476,12 +472,15 @@ export default function PatientDetailPage() {
                     >
                       Diagnoses
                     </Typography>
-                    {mockPatient.diagnoses.map((diagnosis, index) => (
+                    {patient.diagnoses.map((diagnosis, index) => (
                       <Box key={index} sx={{ mb: 2 }}>
                         <Typography variant="body2" color="text.secondary">
                           Diagnosis {index + 1}
                         </Typography>
-                        <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>
+                        <Typography
+                          variant="body1"
+                          sx={{ whiteSpace: "pre-line" }}
+                        >
                           {diagnosis.description}
                         </Typography>
                       </Box>
@@ -498,7 +497,7 @@ export default function PatientDetailPage() {
                       Chronic Illnesses
                     </Typography>
                     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                      {mockPatient.medicalHistory.chronicIllnesses.map(
+                      {patient.medicalHistory.chronicIllnesses.map(
                         (illness, index) => (
                           <Chip key={index} label={illness} />
                         )
@@ -516,7 +515,7 @@ export default function PatientDetailPage() {
                       Allergies
                     </Typography>
                     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                      {mockPatient.medicalHistory.allergies.map(
+                      {patient.medicalHistory.allergies.map(
                         (allergy, index) => (
                           <Chip
                             key={index}
@@ -539,7 +538,7 @@ export default function PatientDetailPage() {
                       Current Medications
                     </Typography>
                     <List dense>
-                      {mockPatient.medicalHistory.currentMedications.map(
+                      {patient.medicalHistory.currentMedications.map(
                         (medication, index) => (
                           <ListItem key={index}>
                             <ListItemText primary={medication} />
@@ -559,7 +558,7 @@ export default function PatientDetailPage() {
                       Previous Treatments
                     </Typography>
                     <List>
-                      {mockPatient.medicalHistory.previousTreatments.map(
+                      {patient.medicalHistory.previousTreatments.map(
                         (treatment, index) => (
                           <ListItem key={index}>
                             <ListItemText
@@ -584,7 +583,7 @@ export default function PatientDetailPage() {
                       Family Medical History
                     </Typography>
                     <Typography variant="body1">
-                      {mockPatient.familyHistory}
+                      {patient.familyHistory}
                     </Typography>
                   </Box>
                 </Box>
@@ -761,7 +760,7 @@ export default function PatientDetailPage() {
         <DialogContent>
           <Box sx={{ mt: 2 }}>
             <PatientDetailsForm
-              patient={mockPatient}
+              patient={patient}
               onClose={() => setIsEditDialogOpen(false)}
               onSave={handleSave}
             />
@@ -964,7 +963,16 @@ const PatientDetailsForm = ({
                 }
               />
             </Grid>
-
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Occupation"
+                value={formData.occupation}
+                onChange={(e) =>
+                  handleInputChange("occupation", e.target.value)
+                }
+              />
+            </Grid>
             {/* Contact Information */}
             <Grid item xs={12}>
               <Typography variant="h6" color="primary" gutterBottom>

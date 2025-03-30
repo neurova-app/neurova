@@ -8,7 +8,9 @@ import { theme } from '@/utils/theme';
 import Box from '@mui/material/Box';
 import { usePathname } from 'next/navigation';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { PatientProvider } from '@/contexts/PatientContext';
 import Navbar from '@/components/Navbar';
+import { SnackbarProvider } from 'notistack';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -18,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isAuthPage = ['/login', '/signup'].includes(pathname);
+  const isAuthPage = ['/login', '/signup', '/forgot-password', '/reset-password'].includes(pathname);
 
   return (
     <html lang="en">
@@ -26,22 +28,26 @@ export default function RootLayout({
         <AppRouterCacheProvider>
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            <AuthProvider>
-              <Box sx={{ display: "flex", minHeight: "100vh" }}>
-                {!isAuthPage && <Navbar />}
-                <Box
-                  component="main"
-                  sx={{
-                    flexGrow: 1,
-                    p: 3,
-                    mt: !isAuthPage ? 8 : 0,
-                    bgcolor: "background.default",
-                  }}
-                >
-                  {children}
-                </Box>
-              </Box>
-            </AuthProvider>
+            <SnackbarProvider maxSnack={3} autoHideDuration={3000}>
+              <AuthProvider>
+                <PatientProvider>
+                  <Box sx={{ display: "flex", minHeight: "100vh" }}>
+                    {!isAuthPage && <Navbar />}
+                    <Box
+                      component="main"
+                      sx={{
+                        flexGrow: 1,
+                        p: 3,
+                        mt: !isAuthPage ? 8 : 0,
+                        bgcolor: "background.default",
+                      }}
+                    >
+                      {children}
+                    </Box>
+                  </Box>
+                </PatientProvider>
+              </AuthProvider>
+            </SnackbarProvider>
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>
