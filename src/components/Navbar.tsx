@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   AppBar,
   Toolbar,
@@ -11,26 +11,34 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
-} from '@mui/material';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import LogoutIcon from '@mui/icons-material/Logout';
-import PersonIcon from '@mui/icons-material/Person';
+  CircularProgress,
+} from "@mui/material";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTherapistProfile } from "@/contexts/TherapistProfileContext";
+import LogoutIcon from "@mui/icons-material/Logout";
+import PersonIcon from "@mui/icons-material/Person";
 
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+function NavLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
   return (
-    <Link href={href} style={{ textDecoration: 'none' }}>
+    <Link href={href} style={{ textDecoration: "none" }}>
       <Typography
         sx={{
-          color: isActive ? 'primary.main' : 'text.primary',
+          color: isActive ? "primary.main" : "text.primary",
           fontWeight: isActive ? 600 : 400,
-          '&:hover': {
-            color: 'primary.main',
+          "&:hover": {
+            color: "primary.main",
           },
         }}
       >
@@ -42,9 +50,22 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const { therapistProfile, isLoading } = useTherapistProfile();
   const router = useRouter();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+  const [userInitials, setUserInitials] = useState<string>("U");
+
+  useEffect(() => {
+    if (user?.name) {
+      const initials = user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase();
+      setUserInitials(initials);
+    }
+  }, [user?.name]);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -61,7 +82,7 @@ export default function Navbar() {
 
   const handleProfile = () => {
     handleClose();
-    router.push('/profile');
+    router.push("/profile");
   };
 
   return (
@@ -92,20 +113,28 @@ export default function Navbar() {
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Typography variant="subtitle2" color="text.secondary">
-            Dr. {user?.name || 'Emily Wilson'}
+            Dr. {user?.name || "Emily Wilson"}
           </Typography>
           <IconButton
             onClick={handleClick}
             size="small"
-            aria-controls={open ? 'account-menu' : undefined}
+            aria-controls={open ? "account-menu" : undefined}
             aria-haspopup="true"
-            aria-expanded={open ? 'true' : undefined}
+            aria-expanded={open ? "true" : undefined}
+            sx={{ position: 'relative' }}
           >
-            <Avatar
-              sx={{ width: 32, height: 32 }}
-              src={user?.avatar}
+            {isLoading ? (
+              <CircularProgress size={32} thickness={2} sx={{ position: 'absolute' }} />
+            ) : null}
+            <Avatar 
+              sx={{ 
+                width: 32, 
+                height: 32,
+                opacity: isLoading ? 0.5 : 1 
+              }} 
+              src={therapistProfile?.profile_picture || ""}
             >
-              {user?.name?.[0] || 'E'}
+              {userInitials}
             </Avatar>
           </IconButton>
           <Menu
@@ -114,8 +143,8 @@ export default function Navbar() {
             open={open}
             onClose={handleClose}
             onClick={handleClose}
-            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            transformOrigin={{ horizontal: "right", vertical: "top" }}
+            anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
           >
             <MenuItem onClick={handleProfile}>
               <ListItemIcon>

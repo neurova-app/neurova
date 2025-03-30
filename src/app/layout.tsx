@@ -9,6 +9,7 @@ import Box from '@mui/material/Box';
 import { usePathname } from 'next/navigation';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { PatientProvider } from '@/contexts/PatientContext';
+import { TherapistProfileProvider } from '@/contexts/TherapistProfileContext';
 import Navbar from '@/components/Navbar';
 import { SnackbarProvider } from 'notistack';
 
@@ -31,20 +32,22 @@ export default function RootLayout({
             <SnackbarProvider maxSnack={3} autoHideDuration={3000}>
               <AuthProvider>
                 <PatientProvider>
-                  <Box sx={{ display: "flex", minHeight: "100vh" }}>
-                    {!isAuthPage && <Navbar />}
-                    <Box
-                      component="main"
-                      sx={{
-                        flexGrow: 1,
-                        p: 3,
-                        mt: !isAuthPage ? 8 : 0,
-                        bgcolor: "background.default",
-                      }}
-                    >
-                      {children}
+                  <TherapistProfileProvider>
+                    <Box sx={{ display: "flex", minHeight: "100vh" }}>
+                      {!isAuthPage && <Navbar />}
+                      <Box
+                        component="main"
+                        sx={{
+                          flexGrow: 1,
+                          p: 3,
+                          mt: !isAuthPage ? 8 : 0,
+                          bgcolor: "background.default",
+                        }}
+                      >
+                        {children}
+                      </Box>
                     </Box>
-                  </Box>
+                  </TherapistProfileProvider>
                 </PatientProvider>
               </AuthProvider>
             </SnackbarProvider>

@@ -8,7 +8,6 @@ import {
   Grid,
   TextField,
   Button,
-  Avatar,
   Divider,
   CircularProgress,
   Alert,
@@ -18,6 +17,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { therapistOperations } from '@/utils/supabase-db';
 import { useSnackbar } from 'notistack';
+import ProfilePictureUpload from '@/components/ProfilePictureUpload';
 
 // Define the therapist profile form data structure
 interface TherapistProfileForm {
@@ -197,21 +197,17 @@ export default function ProfilePage() {
         <Grid container spacing={3}>
           {/* Profile Picture and Basic Info */}
           <Grid item xs={12} md={4} sx={{ textAlign: 'center' }}>
-            <Avatar
-              src={formData.profilePicture}
-              sx={{ width: 150, height: 150, mx: 'auto', mb: 2 }}
-            >
-              {formData.fullName.split(' ').map(n => n[0]).join('')}
-            </Avatar>
+            <ProfilePictureUpload
+              currentImageUrl={formData.profilePicture}
+              fullName={formData.fullName}
+              onImageUploaded={(url) => handleInputChange('profilePicture', url)}
+            />
             <Typography variant="h6" gutterBottom>
               {formData.fullName}
             </Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               {formData.email}
             </Typography>
-            <Button variant="outlined" size="small" sx={{ mt: 1 }}>
-              Change Photo
-            </Button>
           </Grid>
 
           {/* Personal Information */}
