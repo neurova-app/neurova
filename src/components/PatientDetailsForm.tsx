@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Grid,
@@ -13,10 +13,13 @@ import {
   DialogContent,
   IconButton,
   DialogActions,
+  CircularProgress,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Patient } from "@/types/patient";
+import { usePatients } from "@/contexts/PatientContext";
+import { useSnackbar } from "notistack";
 
 const initialFormData: Patient = {
   fullName: "",
@@ -57,15 +60,18 @@ const initialFormData: Patient = {
 export const PatientDetailsForm = ({
   patient,
   onClose,
-  onSave,
+  open = true,
 }: {
   patient?: Patient;
-  onClose: () => void;
-  onSave: (patient: Patient) => void;
+  onClose?: () => void;
+  open?: boolean;
 }) => {
-  const [formData, setFormData] = React.useState<Patient>(
+  const [formData, setFormData] = useState<Patient>(
     patient ?? initialFormData
   );
+  const [saving, setSaving] = useState(false);
+  const { updatePatient, addPatient } = usePatients();
+  const { enqueueSnackbar } = useSnackbar();
 
   const handleInputChange = (field: keyof Patient, value: string) => {
     setFormData((prev) => ({
@@ -173,13 +179,32 @@ export const PatientDetailsForm = ({
     }));
   };
 
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (formData.id) {
+        // Update existing patient
+        await updatePatient(formData.id, formData);
+        enqueueSnackbar("Patient updated successfully", { variant: "success" });
+      } else {
+        // Create new patient - remove the empty id field
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id, ...patientWithoutId } = formData;
+        await addPatient(patientWithoutId);
+        enqueueSnackbar("Patient created successfully", { variant: "success" });
+      }
+      onClose?.();
+    } catch (error: unknown) {
+      console.error("Error saving patient:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to save patient";
+      enqueueSnackbar(`Error: ${errorMessage}`, { variant: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <Dialog 
-      open 
-      maxWidth="md" 
-      fullWidth
-      onClose={onClose}
-    >
+    <Dialog open={open} maxWidth="md" fullWidth onClose={onClose ?? (() => {})}>
       <DialogTitle>Edit Patient Details</DialogTitle>
       <DialogContent>
         <Box component="form" sx={{ mt: 2 }}>
@@ -266,7 +291,9 @@ export const PatientDetailsForm = ({
                 fullWidth
                 label="Occupation"
                 value={formData.occupation}
-                onChange={(e) => handleInputChange("occupation", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("occupation", e.target.value)
+                }
               />
             </Grid>
 
@@ -580,8 +607,13 @@ export const PatientDetailsForm = ({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={() => onSave(formData)}>
+        <Button onClick={() => onClose?.()}>Cancel</Button>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={saving}
+          startIcon={saving ? <CircularProgress size={20} /> : null}
+        >
           Save
         </Button>
       </DialogActions>

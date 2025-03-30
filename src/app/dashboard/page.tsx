@@ -1,14 +1,24 @@
 "use client";
 
 import React from "react";
-import { Box, Grid, Card, Typography, Avatar, Button, Dialog, DialogTitle, DialogContent } from "@mui/material";
+import {
+  Box,
+  Grid,
+  Card,
+  Typography,
+  Avatar,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+} from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AddIcon from "@mui/icons-material/Add";
 import { useRouter } from "next/navigation";
 import AppointmentForm from "@/components/AppointmentForm";
-import { Patient } from "@/types/patient";
+
 import { Appointment } from "@/types";
 import { PatientDetailsForm } from "@/components/PatientDetailsForm";
 
@@ -99,12 +109,6 @@ export default function DashboardPage() {
   const router = useRouter();
   const [isNewPatientOpen, setIsNewPatientOpen] = React.useState(false);
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = React.useState(false);
-
-  const handleNewPatient = (patient: Partial<Patient>) => {
-    console.log("New patient:", patient);
-    setIsNewPatientOpen(false);
-    // TODO: Implement API call to save patient
-  };
 
   const handleClose = () => {
     setIsNewPatientOpen(false);
@@ -254,7 +258,10 @@ export default function DashboardPage() {
                 <Button
                   onClick={() => {
                     router.push(`/patients/12345?tab=2`);
-                    window.open("https://meet.google.com/auz-djks-zuk", "_blank");
+                    window.open(
+                      "https://meet.google.com/auz-djks-zuk",
+                      "_blank"
+                    );
                   }}
                 >
                   Start Session
@@ -379,22 +386,12 @@ export default function DashboardPage() {
       </Grid>
 
       {/* New Patient Dialog */}
-      <Dialog
-        open={isNewPatientOpen}
-        onClose={() => setIsNewPatientOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>Add New Patient</DialogTitle>
-        <DialogContent>
-          <Box sx={{ mt: 2 }}>
-            <PatientDetailsForm
-              onSave={handleNewPatient}
-              onClose={handleClose}
-            />
-          </Box>
-        </DialogContent>
-      </Dialog>
+      <DialogTitle>Add New Patient</DialogTitle>
+      <DialogContent>
+        <Box sx={{ mt: 2 }}>
+          <PatientDetailsForm open={isNewPatientOpen} onClose={handleClose} />
+        </Box>
+      </DialogContent>
 
       {/* New Appointment Dialog */}
       <Dialog
