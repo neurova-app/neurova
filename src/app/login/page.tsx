@@ -3,6 +3,7 @@
 import { Box, Typography } from '@mui/material';
 import LoginForm from '@/components/LoginForm';
 import { useAuth } from '@/contexts/AuthContext';
+import { Suspense } from 'react';
 
 export default function Login() {
   const { login } = useAuth();
@@ -26,7 +27,9 @@ export default function Login() {
       <Typography variant="h5" color="text.secondary">
         Advanced Mental Health Practice Management
       </Typography>
-      <LoginForm onLogin={login} />
+      <Suspense fallback={<div>Loading...</div>}>
+        <LoginForm onLogin={login} />
+      </Suspense>
     </Box>
   );
 }
