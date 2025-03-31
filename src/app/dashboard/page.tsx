@@ -139,7 +139,37 @@ export default function DashboardPage() {
     <Grid container spacing={3}>
       {/* Left Column - Overview and Recent Patients */}
       <Grid item xs={12} md={3}>
-        <Card sx={{ p: 3, mb: 3 }}>
+        <Card sx={{ p: 3, mb: 3, position: "relative" }}>
+          {/* Under Construction Overlay */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 10,
+              borderRadius: "inherit",
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{ color: "white", fontWeight: "bold", mb: 1 }}
+            >
+              UNDER CONSTRUCTION
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ color: "white", textAlign: "center", px: 2 }}
+            >
+              We're working on improving this feature for you
+            </Typography>
+          </Box>
           <Typography variant="h6" gutterBottom>
             Today&apos;s Overview
           </Typography>
@@ -167,7 +197,37 @@ export default function DashboardPage() {
 
       {/* Middle Column - Calendar */}
       <Grid item xs={12} md={6}>
-        <Card sx={{ px: 3, pt: 2, height: "40%", mb: 2 }}>
+        <Card sx={{ px: 3, pt: 2, height: "40%", mb: 2, position: "relative" }}>
+          {/* Under Construction Overlay */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 10,
+              borderRadius: "inherit",
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{ color: "white", fontWeight: "bold", mb: 1 }}
+            >
+              UNDER CONSTRUCTION
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ color: "white", textAlign: "center", px: 2 }}
+            >
+              We're working on improving this feature for you
+            </Typography>
+          </Box>
           <Box
             sx={{
               display: "flex",
@@ -237,7 +297,37 @@ export default function DashboardPage() {
           </Box>
         </Card>
 
-        <Card sx={{ p: 3 }}>
+        <Card sx={{ p: 3, position: "relative" }}>
+          {/* Under Construction Overlay */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 10,
+              borderRadius: "inherit",
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{ color: "white", fontWeight: "bold", mb: 1 }}
+            >
+              UNDER CONSTRUCTION
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ color: "white", textAlign: "center", px: 2 }}
+            >
+              We're working on improving this feature for you
+            </Typography>
+          </Box>
           {/* Upcoming Appointments */}
           <Box>
             <Typography variant="h6" sx={{ mb: 2 }}>
@@ -286,7 +376,37 @@ export default function DashboardPage() {
 
       {/* Right Column - Notifications and Quick Actions */}
       <Grid item xs={12} md={3}>
-        <Card sx={{ p: 3, mb: 3 }}>
+        <Card sx={{ p: 3, mb: 3, position: "relative" }}>
+          {/* Under Construction Overlay */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 10,
+              borderRadius: "inherit",
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{ color: "white", fontWeight: "bold", mb: 1 }}
+            >
+              UNDER CONSTRUCTION
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ color: "white", textAlign: "center", px: 2 }}
+            >
+              We're working on improving this feature for you
+            </Typography>
+          </Box>
           <Typography variant="h6" gutterBottom>
             Notifications
           </Typography>
@@ -327,7 +447,37 @@ export default function DashboardPage() {
           ))}
         </Card>
 
-        <Card sx={{ p: 3 }}>
+        <Card sx={{ p: 3, position: "relative" }}>
+          {/* Under Construction Overlay */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 10,
+              borderRadius: "inherit",
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{ color: "white", fontWeight: "bold", mb: 1 }}
+            >
+              UNDER CONSTRUCTION
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ color: "white", textAlign: "center", px: 2 }}
+            >
+              We're working on improving this feature for you
+            </Typography>
+          </Box>
           <Typography variant="h6" gutterBottom>
             Quick Actions
           </Typography>
@@ -352,12 +502,9 @@ export default function DashboardPage() {
       </Grid>
 
       {/* New Patient Dialog */}
-      <DialogTitle>Add New Patient</DialogTitle>
-      <DialogContent>
-        <Box sx={{ mt: 2 }}>
-          <PatientDetailsForm open={isNewPatientOpen} onClose={handleClose} />
-        </Box>
-      </DialogContent>
+      <Box sx={{ mt: 2 }}>
+        <PatientDetailsForm open={isNewPatientOpen} onClose={handleClose} />
+      </Box>
 
       {/* New Appointment Dialog */}
       <Dialog
