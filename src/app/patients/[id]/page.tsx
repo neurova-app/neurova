@@ -33,7 +33,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { useSearchParams, useParams } from "next/navigation";
 import { usePatients } from "@/contexts/PatientContext";
-import { useSessionNotes } from "@/contexts/SessionNoteContext";
+import { useSessionNotes, SessionNote } from "@/contexts/SessionNoteContext";
 import { useSnackbar } from "notistack";
 import { PatientDetailsForm } from "@/components/PatientDetailsForm";
 import PatientProfilePictureUpload from "@/components/PatientProfilePictureUpload";
@@ -113,25 +113,30 @@ export default function PatientDetailPage() {
   const params = useParams();
   const { patients, loading, error } = usePatients();
   const { enqueueSnackbar } = useSnackbar();
-  const { 
-    sessionNotes, 
-    loading: sessionNotesLoading, 
+  const {
+    sessionNotes,
+    loading: sessionNotesLoading,
     getSessionNotesByPatientId,
     createSessionNote,
     updateSessionNote,
-    deleteSessionNote
+    deleteSessionNote,
   } = useSessionNotes();
 
   const initialTab = searchParams.get("tab");
   const [tabValue, setTabValue] = React.useState(
-    initialTab ? parseInt(initialTab) : 0);
+    initialTab ? parseInt(initialTab) : 0
+  );
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
 
   // Session registry state
-  const [selectedSession, setSelectedSession] = React.useState<SessionNote | null>(null);
+  const [selectedSession, setSelectedSession] =
+    React.useState<SessionNote | null>(null);
   const [isCreatingSession, setIsCreatingSession] = React.useState(false);
-  const [editorContent, setEditorContent] = React.useState<OutputData | null>(null);
-  const [sessionType, setSessionType] = React.useState<string>("Therapy Session");
+  const [editorContent, setEditorContent] = React.useState<OutputData | null>(
+    null
+  );
+  const [sessionType, setSessionType] =
+    React.useState<string>("Therapy Session");
 
   const patientId = params.id as string;
 
@@ -179,8 +184,8 @@ export default function PatientDetailPage() {
 
   const handleCreateSession = () => {
     if (!patient) return;
-    
-    const newSession: Omit<SessionNote, 'id' | 'created_at' | 'updated_at'> = {
+    const newSession: Omit<SessionNote, "id" | "created_at" | "updated_at"> = {
+      //@ts-expect-error: the ID is a string but cannot be an empty string as the  databse wont know how to handle it
       patient_id: patient.id,
       patient_name: patient.fullName || "Unknown Patient",
       title: "New Session",
@@ -198,13 +203,13 @@ export default function PatientDetailPage() {
         ],
         version: "2.26.5",
       },
-      patientName: patient.fullName || "Unknown Patient"
+      patientName: patient.fullName || "Unknown Patient",
     };
 
     // Create a temporary session for the UI
     setSelectedSession({
       id: `temp-${Date.now()}`,
-      ...newSession
+      ...newSession,
     });
     setEditorContent(newSession.content);
     setIsCreatingSession(true);
@@ -243,15 +248,17 @@ export default function PatientDetailPage() {
         title: autoTitle,
         type: sessionType,
         date: new Date().toISOString().split("T")[0],
-        content: editorContent
+        content: editorContent,
       };
 
-      createSessionNote(newSession)
+      createSessionNote(newSession as Omit<SessionNote, "id" | "created_at" | "updated_at">)
         .then((createdNote) => {
           if (createdNote) {
             setSelectedSession(createdNote);
             setIsCreatingSession(false);
-            enqueueSnackbar("Session created successfully", { variant: "success" });
+            enqueueSnackbar("Session created successfully", {
+              variant: "success",
+            });
           }
         })
         .catch((error) => {
@@ -264,14 +271,16 @@ export default function PatientDetailPage() {
         id: selectedSession.id,
         title: autoTitle,
         type: sessionType,
-        content: editorContent
+        content: editorContent,
       };
 
       updateSessionNote(updatedSession)
         .then((updatedNote) => {
           if (updatedNote) {
             setSelectedSession(updatedNote);
-            enqueueSnackbar("Session updated successfully", { variant: "success" });
+            enqueueSnackbar("Session updated successfully", {
+              variant: "success",
+            });
           }
         })
         .catch((error) => {
@@ -326,7 +335,7 @@ export default function PatientDetailPage() {
     return null;
   }
 
-  console.log(sessionNotes)
+  console.log(sessionNotes);
 
   return (
     <Box>
@@ -781,7 +790,9 @@ export default function PatientDetailPage() {
                   <Divider />
 
                   {sessionNotesLoading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                    <Box
+                      sx={{ display: "flex", justifyContent: "center", mt: 4 }}
+                    >
                       <CircularProgress />
                     </Box>
                   ) : (
@@ -794,10 +805,15 @@ export default function PatientDetailPage() {
                     >
                       {sessionNotes
                         .slice()
-                        .sort((a, b) =>
-                          new Date(b.created_at).getTime() -
-                          new Date(a.created_at).getTime()
-                        )
+                        .sort((a, b) => {
+                          const dateA = a.created_at
+                            ? new Date(a.created_at)
+                            : new Date();
+                          const dateB = b.created_at
+                            ? new Date(b.created_at)
+                            : new Date();
+                          return dateB.getTime() - dateA.getTime();
+                        })
                         .map((session) => (
                           <React.Fragment key={session.id}>
                             <ListItemButton
@@ -812,7 +828,10 @@ export default function PatientDetailPage() {
                               <ListItemText
                                 primary={
                                   <Box component="div">
-                                    <Typography variant="subtitle1" component="div">
+                                    <Typography
+                                      variant="subtitle1"
+                                      component="div"
+                                    >
                                       {session.title}
                                     </Typography>
                                     <Typography
