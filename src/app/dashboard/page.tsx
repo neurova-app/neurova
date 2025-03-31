@@ -14,7 +14,6 @@ import {
 } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AddIcon from "@mui/icons-material/Add";
 import { useRouter } from "next/navigation";
 import AppointmentForm from "@/components/AppointmentForm";
@@ -35,24 +34,13 @@ interface Notification {
   type: "appointment" | "message" | "system";
 }
 
-interface RecentPatient {
-  id: string;
-  name: string;
-  nextAppointment: string;
-}
-
 const overviewItems: OverviewItem[] = [
   { label: "Appointments", value: "8", color: "#4A90E2" },
   { label: "Pending Tasks", value: "3", color: "#50C878" },
   { label: "Unread Messages", value: "5", color: "#FF6B6B" },
 ];
 
-const recentPatients: RecentPatient[] = [
-  { id: "1", name: "Emily Parker", nextAppointment: "Today, 2:00 PM" },
-  { id: "2", name: "Sarah Johnson", nextAppointment: "Today, 3:00 PM" },
-  { id: "3", name: "Michael Brown", nextAppointment: "Tomorrow, 10:00 AM" },
-  { id: "4", name: "Jessica Wilson", nextAppointment: "Tomorrow, 11:30 AM" },
-];
+
 
 const upcomingAppointments: Appointment[] = [
   {
@@ -167,7 +155,7 @@ export default function DashboardPage() {
               variant="body2"
               sx={{ color: "white", textAlign: "center", px: 2 }}
             >
-              We're working on improving this feature for you
+              We&apos;re working on improving this feature for you
             </Typography>
           </Box>
           <Typography variant="h6" gutterBottom>
@@ -225,7 +213,7 @@ export default function DashboardPage() {
               variant="body2"
               sx={{ color: "white", textAlign: "center", px: 2 }}
             >
-              We're working on improving this feature for you
+              We&apos;re working on improving this feature for you
             </Typography>
           </Box>
           <Box
@@ -325,7 +313,7 @@ export default function DashboardPage() {
               variant="body2"
               sx={{ color: "white", textAlign: "center", px: 2 }}
             >
-              We're working on improving this feature for you
+              We&apos;re working on improving this feature for you
             </Typography>
           </Box>
           {/* Upcoming Appointments */}
@@ -404,7 +392,7 @@ export default function DashboardPage() {
               variant="body2"
               sx={{ color: "white", textAlign: "center", px: 2 }}
             >
-              We're working on improving this feature for you
+              We&apos;re working on improving this feature for you
             </Typography>
           </Box>
           <Typography variant="h6" gutterBottom>
@@ -475,7 +463,7 @@ export default function DashboardPage() {
               variant="body2"
               sx={{ color: "white", textAlign: "center", px: 2 }}
             >
-              We're working on improving this feature for you
+              We&apos;re working on improving this feature for you
             </Typography>
           </Box>
           <Typography variant="h6" gutterBottom>

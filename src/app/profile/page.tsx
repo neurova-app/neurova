@@ -116,7 +116,7 @@ export default function ProfilePage() {
     fetchTherapistProfile();
   }, [user]);
 
-  const handleInputChange = (field: keyof TherapistProfileForm, value: any) => {
+  const handleInputChange = (field: keyof TherapistProfileForm, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
