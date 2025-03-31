@@ -70,7 +70,6 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-
 // Mock session data
 const mockSessions: Session[] = [
   {
@@ -228,25 +227,31 @@ const getTypeColor = (type: string) => {
 
 const getContentSummary = (content: OutputData) => {
   // Find the index of the first header or text block
-  const headerIndex = content.blocks.findIndex(block => block.type === "header");
-  const firstTextIndex = content.blocks.findIndex(block => block.type === "paragraph");
-  
+  const headerIndex = content.blocks.findIndex(
+    (block) => block.type === "header"
+  );
+  const firstTextIndex = content.blocks.findIndex(
+    (block) => block.type === "paragraph"
+  );
+
   // Determine which block is used for the title (header has priority)
   const titleBlockIndex = headerIndex >= 0 ? headerIndex : firstTextIndex;
-  
+
   // If we found a title block, look for the next text block after it
   if (titleBlockIndex >= 0) {
     // Find the next paragraph after the title block
-    const nextTextBlock = content.blocks.slice(titleBlockIndex + 1).find(
-      block => block.type === "paragraph" || block.type === "header"
-    );
-    
+    const nextTextBlock = content.blocks
+      .slice(titleBlockIndex + 1)
+      .find((block) => block.type === "paragraph" || block.type === "header");
+
     if (nextTextBlock && nextTextBlock.data.text) {
-      return nextTextBlock.data.text.substring(0, 60) + 
-        (nextTextBlock.data.text.length > 60 ? "..." : "");
+      return (
+        nextTextBlock.data.text.substring(0, 60) +
+        (nextTextBlock.data.text.length > 60 ? "..." : "")
+      );
     }
   }
-  
+
   // Fallback if no suitable block is found
   return "No additional content";
 };
@@ -272,10 +277,16 @@ export default function PatientDetailPage() {
   const [editorContent, setEditorContent] = React.useState<OutputData | null>(
     null
   );
-  const [sessionType, setSessionType] = React.useState<string>("Therapy Session");
+  const [sessionType, setSessionType] =
+    React.useState<string>("Therapy Session");
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
+
+    // When switching to Session Registry tab (tab 2), create a new session if none is selected
+    if (newValue === 2 && !selectedSession && !isCreatingSession) {
+      handleCreateSession();
+    }
   };
 
   const handleSessionSelect = (session: Session) => {
@@ -310,15 +321,21 @@ export default function PatientDetailPage() {
     let autoTitle = "New Session";
 
     // Try to find the first header
-    const headerBlock = editorContent.blocks.find(block => block.type === "header");
+    const headerBlock = editorContent.blocks.find(
+      (block) => block.type === "header"
+    );
     if (headerBlock && headerBlock.data.text) {
       autoTitle = headerBlock.data.text;
     } else {
       // Try to find the first paragraph
-      const paragraphBlock = editorContent.blocks.find(block => block.type === "paragraph");
+      const paragraphBlock = editorContent.blocks.find(
+        (block) => block.type === "paragraph"
+      );
       if (paragraphBlock && paragraphBlock.data.text) {
         // Limit to first 30 characters
-        autoTitle = paragraphBlock.data.text.substring(0, 30) + (paragraphBlock.data.text.length > 30 ? "..." : "");
+        autoTitle =
+          paragraphBlock.data.text.substring(0, 30) +
+          (paragraphBlock.data.text.length > 30 ? "..." : "");
       }
     }
 
@@ -886,6 +903,7 @@ export default function PatientDetailPage() {
                     sx={{
                       height: "calc(100vh - 280px)",
                       overflow: "auto",
+                      paddingBottom: 12,
                     }}
                   >
                     {sessions.map((session) => (
@@ -905,7 +923,11 @@ export default function PatientDetailPage() {
                                 <Typography variant="subtitle1" component="div">
                                   {session.title}
                                 </Typography>
-                                <Typography variant="caption" component="div" color="text.secondary">
+                                <Typography
+                                  variant="caption"
+                                  component="div"
+                                  color="text.secondary"
+                                >
                                   {session.date}
                                 </Typography>
                               </Box>
@@ -918,7 +940,10 @@ export default function PatientDetailPage() {
                                   color={getTypeColor(session.type)}
                                   sx={{ my: 0.5, display: "inline-block" }}
                                 />
-                                <Box component="span" sx={{ display: "block", mt: 0.5 }}>
+                                <Box
+                                  component="span"
+                                  sx={{ display: "block", mt: 0.5 }}
+                                >
                                   {getContentSummary(session.content)}
                                 </Box>
                               </>
@@ -965,20 +990,30 @@ export default function PatientDetailPage() {
                         </IconButton>
                       </Box>
                       {selectedSession && (
-                        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+                        <Box
+                          sx={{ display: "flex", gap: 2, alignItems: "center" }}
+                        >
                           <FormControl size="small" sx={{ minWidth: 150 }}>
-                            <InputLabel id="session-type-label">Session Type</InputLabel>
+                            <InputLabel id="session-type-label">
+                              Session Type
+                            </InputLabel>
                             <Select
                               labelId="session-type-label"
                               value={sessionType}
                               label="Session Type"
                               onChange={(e) => setSessionType(e.target.value)}
                             >
-                              <MenuItem value="Therapy Session">Therapy Session</MenuItem>
-                              <MenuItem value="Medical Note">Medical Note</MenuItem>
+                              <MenuItem value="Therapy Session">
+                                Therapy Session
+                              </MenuItem>
+                              <MenuItem value="Medical Note">
+                                Medical Note
+                              </MenuItem>
                               <MenuItem value="Lab Result">Lab Result</MenuItem>
                               <MenuItem value="Assessment">Assessment</MenuItem>
-                              <MenuItem value="Treatment Plan">Treatment Plan</MenuItem>
+                              <MenuItem value="Treatment Plan">
+                                Treatment Plan
+                              </MenuItem>
                             </Select>
                           </FormControl>
                           <Typography variant="subtitle1">
