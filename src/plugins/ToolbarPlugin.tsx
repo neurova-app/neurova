@@ -39,6 +39,7 @@ import {
   getDefaultCodeLanguage,
   getCodeLanguages
 } from "@lexical/code";
+import { InsertImageUploadButton } from "./ImagePlugin";
 
 const LowPriority = 1;
 
@@ -651,9 +652,11 @@ export default function ToolbarPlugin() {
           >
             <i className="format link" />
           </button>
+          <Divider />
+          <InsertImageUploadButton editor={editor} />
+          <Divider />
           {isLink &&
             createPortal(<FloatingLinkEditor editor={editor} />, document.body)}
-          <Divider />
           <button
             onClick={() => {
               editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "left");
