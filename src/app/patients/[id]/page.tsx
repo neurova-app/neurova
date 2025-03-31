@@ -226,6 +226,31 @@ const getTypeColor = (type: string) => {
   }
 };
 
+const getContentSummary = (content: OutputData) => {
+  // Find the index of the first header or text block
+  const headerIndex = content.blocks.findIndex(block => block.type === "header");
+  const firstTextIndex = content.blocks.findIndex(block => block.type === "paragraph");
+  
+  // Determine which block is used for the title (header has priority)
+  const titleBlockIndex = headerIndex >= 0 ? headerIndex : firstTextIndex;
+  
+  // If we found a title block, look for the next text block after it
+  if (titleBlockIndex >= 0) {
+    // Find the next paragraph after the title block
+    const nextTextBlock = content.blocks.slice(titleBlockIndex + 1).find(
+      block => block.type === "paragraph" || block.type === "header"
+    );
+    
+    if (nextTextBlock && nextTextBlock.data.text) {
+      return nextTextBlock.data.text.substring(0, 60) + 
+        (nextTextBlock.data.text.length > 60 ? "..." : "");
+    }
+  }
+  
+  // Fallback if no suitable block is found
+  return "No additional content";
+};
+
 export default function PatientDetailPage() {
   const searchParams = useSearchParams();
   const params = useParams();
@@ -243,13 +268,11 @@ export default function PatientDetailPage() {
   const [selectedSession, setSelectedSession] = React.useState<Session | null>(
     null
   );
+  const [isCreatingSession, setIsCreatingSession] = React.useState(false);
   const [editorContent, setEditorContent] = React.useState<OutputData | null>(
     null
   );
-  const [isCreatingSession, setIsCreatingSession] = React.useState(false);
-  const [sessionTitle, setSessionTitle] = React.useState<string>("");
-  const [sessionType, setSessionType] =
-    React.useState<string>("Therapy Session");
+  const [sessionType, setSessionType] = React.useState<string>("Therapy Session");
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -258,8 +281,6 @@ export default function PatientDetailPage() {
   const handleSessionSelect = (session: Session) => {
     setSelectedSession(session);
     setEditorContent(session.content);
-    setSessionTitle(session.title);
-    setSessionType(session.type);
     setIsCreatingSession(false);
   };
 
@@ -279,28 +300,25 @@ export default function PatientDetailPage() {
 
     setSelectedSession(newSession);
     setEditorContent(newSession.content);
-    setSessionTitle("New Session");
-    setSessionType("Therapy Session");
     setIsCreatingSession(true);
   };
 
   const handleSaveSession = () => {
     if (!editorContent || !selectedSession) return;
 
-    // Find the first header or paragraph to use as title
-    let autoTitle = sessionTitle;
-    if (!autoTitle || autoTitle === "New Session") {
-      // Try to find the first header
-      const headerBlock = editorContent.blocks.find(block => block.type === "header");
-      if (headerBlock && headerBlock.data.text) {
-        autoTitle = headerBlock.data.text;
-      } else {
-        // Try to find the first paragraph
-        const paragraphBlock = editorContent.blocks.find(block => block.type === "paragraph");
-        if (paragraphBlock && paragraphBlock.data.text) {
-          // Limit to first 30 characters
-          autoTitle = paragraphBlock.data.text.substring(0, 30) + (paragraphBlock.data.text.length > 30 ? "..." : "");
-        }
+    // Always generate title based on current content
+    let autoTitle = "New Session";
+
+    // Try to find the first header
+    const headerBlock = editorContent.blocks.find(block => block.type === "header");
+    if (headerBlock && headerBlock.data.text) {
+      autoTitle = headerBlock.data.text;
+    } else {
+      // Try to find the first paragraph
+      const paragraphBlock = editorContent.blocks.find(block => block.type === "paragraph");
+      if (paragraphBlock && paragraphBlock.data.text) {
+        // Limit to first 30 characters
+        autoTitle = paragraphBlock.data.text.substring(0, 30) + (paragraphBlock.data.text.length > 30 ? "..." : "");
       }
     }
 
@@ -308,7 +326,7 @@ export default function PatientDetailPage() {
       // Creating a new session
       const newSession: Session = {
         ...selectedSession,
-        title: autoTitle || sessionTitle,
+        title: autoTitle,
         type: sessionType,
         content: editorContent,
         date: new Date().toISOString().split("T")[0],
@@ -324,7 +342,7 @@ export default function PatientDetailPage() {
         session.id === selectedSession.id
           ? {
               ...session,
-              title: autoTitle || sessionTitle,
+              title: autoTitle,
               type: sessionType,
               content: editorContent,
             }
@@ -334,7 +352,7 @@ export default function PatientDetailPage() {
       setSessions(updatedSessions);
       setSelectedSession({
         ...selectedSession,
-        title: autoTitle || sessionTitle,
+        title: autoTitle,
         type: sessionType,
         content: editorContent,
       });
@@ -351,8 +369,6 @@ export default function PatientDetailPage() {
     setSessions(updatedSessions);
     setSelectedSession(null);
     setEditorContent(null);
-    setSessionTitle("");
-    setSessionType("");
     enqueueSnackbar("Session deleted successfully", { variant: "success" });
   };
 
@@ -903,7 +919,7 @@ export default function PatientDetailPage() {
                                   sx={{ my: 0.5, display: "inline-block" }}
                                 />
                                 <Box component="span" sx={{ display: "block", mt: 0.5 }}>
-                                  {session.content.blocks[0]?.data?.text || "No content"}
+                                  {getContentSummary(session.content)}
                                 </Box>
                               </>
                             }
