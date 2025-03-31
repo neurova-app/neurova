@@ -37,7 +37,24 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const editorRef = useRef<EditorJS | null>(null);
   const holderRef = useRef<HTMLDivElement>(null);
   const [editorApi, setEditorApi] = useState<API | null>(null);
+  const [isReady, setIsReady] = useState(false);
+  const dataRef = useRef(data || defaultData);
 
+  // Update the ref when data prop changes, but don't cause re-renders
+  useEffect(() => {
+    if (data && !isReady) {
+      dataRef.current = data;
+    } else if (data && isReady && editorRef.current) {
+      // Only render new data if the editor is already initialized and data has changed significantly
+      const currentData = JSON.stringify(dataRef.current);
+      const newData = JSON.stringify(data);
+
+      if (currentData !== newData) {
+        dataRef.current = data;
+        editorRef.current.render(data);
+      }
+    }
+  }, [data, isReady]);
 
   const handleImageClick = () => {
     if (!editorApi) return;
@@ -105,13 +122,14 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           marker: Marker,
           inlineCode: InlineCode,
         },
-        data: data || defaultData,
+        data: dataRef.current,
         placeholder: placeholder,
         readOnly: readOnly,
         onChange: async () => {
-          if (onChange) {
-            const savedData = await editorRef.current?.save();
+          if (onChange && editorRef.current) {
+            const savedData = await editorRef.current.save();
             if (savedData) {
+              dataRef.current = savedData;
               onChange(savedData);
             }
           }
@@ -120,6 +138,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           if (editorRef.current) {
             // Get the API from the editor instance
             setEditorApi(editorRef.current as unknown as API);
+            setIsReady(true);
           }
         },
       });
@@ -132,9 +151,17 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       if (editorRef.current && editorRef.current.destroy) {
         editorRef.current.destroy();
         editorRef.current = null;
+        setIsReady(false);
       }
     };
-  }, [data, onChange, placeholder, readOnly]);
+  }, [onChange, placeholder]);
+
+  // Handle readOnly changes without reinitializing the editor
+  useEffect(() => {
+    if (isReady && editorRef.current) {
+      editorRef.current.readOnly.toggle(readOnly);
+    }
+  }, [readOnly, isReady]);
 
   return (
     <div className="rich-text-editor">
@@ -143,6 +170,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onClick={handleChecklistClick}
           className="toolbar-button"
           title="Checklist"
+          disabled={readOnly}
         >
           ✓ List
         </button>
@@ -150,6 +178,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onClick={handleQuoteClick}
           className="toolbar-button"
           title="Quote"
+          disabled={readOnly}
         >
           &ldquo;Quote&rdquo;
         </button>
@@ -157,6 +186,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onClick={handleImageClick}
           className="toolbar-button"
           title="Image"
+          disabled={readOnly}
         >
           🖼️ Image
         </button>
@@ -164,6 +194,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onClick={handleCodeClick}
           className="toolbar-button"
           title="Code"
+          disabled={readOnly}
         >
           {"<>"} Code
         </button>
@@ -171,6 +202,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onClick={handleTableClick}
           className="toolbar-button"
           title="Table"
+          disabled={readOnly}
         >
           ⊞ Table
         </button>
@@ -205,9 +237,14 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           transition: all 0.2s ease;
         }
 
-        .toolbar-button:hover {
+        .toolbar-button:hover:not(:disabled) {
           background-color: #f0f0f0;
           border-color: #ccc;
+        }
+
+        .toolbar-button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         .editor-container {

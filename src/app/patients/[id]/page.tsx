@@ -26,12 +26,14 @@ import SearchIcon from "@mui/icons-material/Search";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
 import { useSearchParams, useParams } from "next/navigation";
 import { usePatients } from "@/contexts/PatientContext";
 import { useSnackbar } from "notistack";
 import { PatientDetailsForm } from "@/components/PatientDetailsForm";
 import PatientProfilePictureUpload from "@/components/PatientProfilePictureUpload";
 import RichTextEditor from "@/components/RichTextEditor";
+import { OutputData } from "@editorjs/editorjs";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -47,6 +49,15 @@ interface MedicalRecord {
   notes: string;
 }
 
+interface Session {
+  id: string;
+  patientName: string;
+  date: string;
+  type: "Medical Note" | "Lab Result" | "Therapy Session" | string;
+  title: string;
+  content: OutputData;
+}
+
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
 
@@ -54,11 +65,11 @@ function TabPanel(props: TabPanelProps) {
     <div
       role="tabpanel"
       hidden={value !== index}
-      id={`patient-tabpanel-${index}`}
-      aria-labelledby={`patient-tab-${index}`}
+      id={`tabpanel-${index}`}
+      aria-labelledby={`tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+      {value === index && <Box>{children}</Box>}
     </div>
   );
 }
@@ -70,14 +81,156 @@ const mockRecords: MedicalRecord[] = [
     patientName: "Sarah Johnson",
     date: "2024-01-01",
     type: "Medical Note",
-    notes: "This is a sample medical note.",
+    notes: "Patient reports feeling better after medication adjustment.",
   },
   {
     id: 2,
     patientName: "Sarah Johnson",
-    date: "2024-01-15",
+    date: "2023-12-15",
     type: "Lab Result",
-    notes: "This is a sample lab result.",
+    notes: "Blood work shows improvement in all markers.",
+  },
+];
+
+// Mock session data
+const mockSessions: Session[] = [
+  {
+    id: "1",
+    patientName: "Sarah Johnson",
+    date: "2024-03-15",
+    type: "Therapy Session",
+    title: "Initial Assessment",
+    content: {
+      time: 1616069996740,
+      blocks: [
+        {
+          type: "header",
+          data: {
+            text: "Initial Assessment Session",
+            level: 2,
+          },
+        },
+        {
+          type: "paragraph",
+          data: {
+            text: "Patient presented with symptoms of anxiety and depression. Reports difficulty sleeping and concentrating at work.",
+          },
+        },
+        {
+          type: "list",
+          data: {
+            style: "unordered",
+            items: [
+              "Sleep disturbance - 3 hours per night",
+              "Decreased appetite",
+              "Social withdrawal",
+              "Difficulty concentrating",
+            ],
+          },
+        },
+        {
+          type: "paragraph",
+          data: {
+            text: "Will begin weekly therapy sessions focusing on CBT techniques and mindfulness practices.",
+          },
+        },
+      ],
+      version: "2.26.5",
+    },
+  },
+  {
+    id: "2",
+    patientName: "Sarah Johnson",
+    date: "2024-03-22",
+    type: "Therapy Session",
+    title: "Follow-up Session",
+    content: {
+      time: 1616069996740,
+      blocks: [
+        {
+          type: "header",
+          data: {
+            text: "Follow-up Session",
+            level: 2,
+          },
+        },
+        {
+          type: "paragraph",
+          data: {
+            text: "Patient reports slight improvement in sleep patterns after implementing bedtime routine. Still experiencing anxiety at work.",
+          },
+        },
+        {
+          type: "checklist",
+          data: {
+            items: [
+              {
+                text: "Practiced deep breathing exercises",
+                checked: true,
+              },
+              {
+                text: "Maintained sleep journal",
+                checked: true,
+              },
+              {
+                text: "Reduced screen time before bed",
+                checked: false,
+              },
+            ],
+          },
+        },
+        {
+          type: "paragraph",
+          data: {
+            text: "Will continue with current treatment plan and add stress management techniques for workplace situations.",
+          },
+        },
+      ],
+      version: "2.26.5",
+    },
+  },
+  {
+    id: "3",
+    patientName: "Sarah Johnson",
+    date: "2024-03-29",
+    type: "Medical Note",
+    title: "Medication Review",
+    content: {
+      time: 1616069996740,
+      blocks: [
+        {
+          type: "header",
+          data: {
+            text: "Medication Review",
+            level: 2,
+          },
+        },
+        {
+          type: "paragraph",
+          data: {
+            text: "Patient reports side effects from current medication including dry mouth and mild headaches. Considering adjustment to dosage or alternative medication.",
+          },
+        },
+        {
+          type: "table",
+          data: {
+            withHeadings: true,
+            content: [
+              ["Medication", "Dosage", "Frequency", "Side Effects"],
+              ["Sertraline", "50mg", "Daily", "Dry mouth, headache"],
+              ["Lorazepam", "0.5mg", "As needed", "Drowsiness"],
+            ],
+          },
+        },
+        {
+          type: "paragraph",
+          data: {
+            text: "Will monitor for one more week before making any changes to medication regimen.",
+          },
+        },
+      ],
+      version: "2.26.5",
+    },
   },
 ];
 
@@ -87,6 +240,8 @@ const getTypeColor = (type: string) => {
       return "primary";
     case "Lab Result":
       return "success";
+    case "Therapy Session":
+      return "secondary";
     default:
       return "info";
   }
@@ -103,17 +258,106 @@ export default function PatientDetailPage() {
     initialTab ? parseInt(initialTab) : 0
   );
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
-  const [selectedRecord, setSelectedRecord] =
-    React.useState<MedicalRecord | null>(null);
-  const [notes, setNotes] = React.useState("");
+
+  // Session registry state
+  const [sessions, setSessions] = React.useState<Session[]>(mockSessions);
+  const [selectedSession, setSelectedSession] = React.useState<Session | null>(
+    null
+  );
+  const [editorContent, setEditorContent] = React.useState<OutputData | null>(
+    null
+  );
+  const [isCreatingSession, setIsCreatingSession] = React.useState(false);
+  const [sessionTitle, setSessionTitle] = React.useState<string>("");
+  const [sessionType, setSessionType] =
+    React.useState<string>("Therapy Session");
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
-  const handleRecordSelect = (record: MedicalRecord) => {
-    setSelectedRecord(record);
-    setNotes(record.notes);
+  const handleSessionSelect = (session: Session) => {
+    setSelectedSession(session);
+    setEditorContent(session.content);
+    setSessionTitle(session.title);
+    setSessionType(session.type);
+    setIsCreatingSession(false);
+  };
+
+  const handleCreateSession = () => {
+    const newSession: Session = {
+      id: Date.now().toString(),
+      patientName: patient?.fullName || "Unknown Patient",
+      date: new Date().toISOString().split("T")[0],
+      type: "Therapy Session",
+      title: "New Session",
+      content: {
+        time: Date.now(),
+        blocks: [],
+        version: "2.26.5",
+      },
+    };
+
+    setSelectedSession(newSession);
+    setEditorContent(newSession.content);
+    setSessionTitle("New Session");
+    setSessionType("Therapy Session");
+    setIsCreatingSession(true);
+  };
+
+  const handleSaveSession = () => {
+    if (!editorContent || !selectedSession) return;
+
+    if (isCreatingSession) {
+      // Creating a new session
+      const newSession: Session = {
+        ...selectedSession,
+        title: sessionTitle,
+        type: sessionType,
+        content: editorContent,
+        date: new Date().toISOString().split("T")[0],
+      };
+
+      setSessions([newSession, ...sessions]);
+      setSelectedSession(newSession);
+      setIsCreatingSession(false);
+      enqueueSnackbar("Session created successfully", { variant: "success" });
+    } else if (selectedSession) {
+      // Updating an existing session
+      const updatedSessions = sessions.map((session) =>
+        session.id === selectedSession.id
+          ? {
+              ...session,
+              title: sessionTitle,
+              type: sessionType,
+              content: editorContent,
+            }
+          : session
+      );
+
+      setSessions(updatedSessions);
+      setSelectedSession({
+        ...selectedSession,
+        title: sessionTitle,
+        type: sessionType,
+        content: editorContent,
+      });
+      enqueueSnackbar("Session updated successfully", { variant: "success" });
+    }
+  };
+
+  const handleDeleteSession = () => {
+    if (!selectedSession) return;
+
+    const updatedSessions = sessions.filter(
+      (session) => session.id !== selectedSession.id
+    );
+    setSessions(updatedSessions);
+    setSelectedSession(null);
+    setEditorContent(null);
+    setSessionTitle("");
+    setSessionType("");
+    enqueueSnackbar("Session deleted successfully", { variant: "success" });
   };
 
   const calculateAge = (dateOfBirth: string) => {
@@ -132,14 +376,14 @@ export default function PatientDetailPage() {
   // Find the patient by ID or by slug
   const patient = patients.find((p) => {
     // If the URL parameter is a UUID, match directly
-    if (patientId.includes('-') && p.id === patientId) {
+    if (patientId.includes("-") && p.id === patientId) {
       return true;
     }
 
     // Otherwise, check if it's a slug that contains the patient's name and ID
     if (p.id && p.fullName) {
       // Extract the ID suffix from the slug (last part after the last hyphen)
-      const slugParts = patientId.split('-');
+      const slugParts = patientId.split("-");
       const idSuffix = slugParts[slugParts.length - 1];
 
       // Check if the ID starts with this suffix
@@ -590,13 +834,13 @@ export default function PatientDetailPage() {
                   height: "calc(100vh - 200px)",
                 }}
               >
-                {/* Left Sidebar - Records List */}
+                {/* Left Sidebar - Sessions List */}
                 <Card sx={{ width: 300, flexShrink: 0 }}>
                   <Box sx={{ p: 2 }}>
                     <TextField
                       fullWidth
                       size="small"
-                      placeholder="Search records..."
+                      placeholder="Search sessions..."
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
@@ -615,10 +859,11 @@ export default function PatientDetailPage() {
                       </Button>
                       <Button
                         size="small"
-                        startIcon={<FilterListIcon />}
-                        variant="outlined"
+                        startIcon={<AddIcon />}
+                        variant="contained"
+                        onClick={handleCreateSession}
                       >
-                        Filters
+                        New Session
                       </Button>
                     </Box>
                   </Box>
@@ -631,11 +876,11 @@ export default function PatientDetailPage() {
                       overflow: "auto",
                     }}
                   >
-                    {mockRecords.map((record) => (
-                      <React.Fragment key={record.id}>
+                    {sessions.map((session) => (
+                      <React.Fragment key={session.id}>
                         <ListItemButton
-                          selected={selectedRecord?.id === record.id}
-                          onClick={() => handleRecordSelect(record)}
+                          selected={selectedSession?.id === session.id}
+                          onClick={() => handleSessionSelect(session)}
                           sx={{
                             "&:hover": { bgcolor: "background.default" },
                           }}
@@ -649,23 +894,26 @@ export default function PatientDetailPage() {
                                 }}
                               >
                                 <Typography variant="subtitle2">
-                                  {record.patientName}
+                                  {session.title}
                                 </Typography>
                                 <Typography
                                   variant="caption"
                                   color="text.secondary"
                                 >
-                                  {record.date}
+                                  {session.date}
                                 </Typography>
                               </Box>
                             }
                             secondary={
                               <Box component="div">
-                                <Box component="span" sx={{ display: 'inline-block' }}>
+                                <Box
+                                  component="span"
+                                  sx={{ display: "inline-block" }}
+                                >
                                   <Chip
-                                    label={record.type}
+                                    label={session.type}
                                     size="small"
-                                    color={getTypeColor(record.type)}
+                                    color={getTypeColor(session.type)}
                                     sx={{ my: 0.5 }}
                                   />
                                 </Box>
@@ -681,7 +929,8 @@ export default function PatientDetailPage() {
                                     WebkitBoxOrient: "vertical",
                                   }}
                                 >
-                                  {record.notes}
+                                  {session.content.blocks[0]?.data?.text ||
+                                    "No content"}
                                 </Typography>
                               </Box>
                             }
@@ -693,7 +942,7 @@ export default function PatientDetailPage() {
                   </List>
                 </Card>
 
-                {/* Main Content - Record Editor */}
+                {/* Main Content - Session Editor */}
                 <Card sx={{ flex: 1 }}>
                   <Box
                     sx={{
@@ -710,13 +959,28 @@ export default function PatientDetailPage() {
                       }}
                     >
                       <Box>
-                        <IconButton color="primary">
+                        <IconButton
+                          color="primary"
+                          onClick={handleSaveSession}
+                          disabled={!selectedSession && !isCreatingSession}
+                        >
                           <SaveIcon />
                         </IconButton>
-                        <IconButton color="error">
+                        <IconButton
+                          color="error"
+                          onClick={handleDeleteSession}
+                          disabled={!selectedSession || isCreatingSession}
+                        >
                           <DeleteIcon />
                         </IconButton>
                       </Box>
+                      {selectedSession && (
+                        <Typography variant="subtitle1">
+                          {isCreatingSession
+                            ? "New Session"
+                            : selectedSession.title}
+                        </Typography>
+                      )}
                     </Box>
                   </Box>
 
@@ -726,7 +990,12 @@ export default function PatientDetailPage() {
                       height: "calc(100vh - 280px)",
                     }}
                   >
-                    <RichTextEditor />
+                    <RichTextEditor
+                      data={editorContent || undefined}
+                      onChange={setEditorContent}
+                      readOnly={!selectedSession && !isCreatingSession}
+                      height="calc(100vh - 320px)"
+                    />
                   </Box>
                 </Card>
               </Box>
@@ -736,7 +1005,11 @@ export default function PatientDetailPage() {
       </Grid>
 
       {/* Edit Patient Dialog */}
-      <PatientDetailsForm patient={patient} open={isEditDialogOpen} onClose={() => setIsEditDialogOpen(false)} />
+      <PatientDetailsForm
+        patient={patient}
+        open={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+      />
     </Box>
   );
 }
