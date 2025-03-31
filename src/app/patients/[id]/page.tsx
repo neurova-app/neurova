@@ -20,6 +20,10 @@ import {
   InputAdornment,
   ListItemButton,
   Grid,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import SearchIcon from "@mui/icons-material/Search";
@@ -75,22 +79,22 @@ function TabPanel(props: TabPanelProps) {
 }
 
 // Mock records data for now - we'll implement this later
-const mockRecords: MedicalRecord[] = [
-  {
-    id: 1,
-    patientName: "Sarah Johnson",
-    date: "2024-01-01",
-    type: "Medical Note",
-    notes: "Patient reports feeling better after medication adjustment.",
-  },
-  {
-    id: 2,
-    patientName: "Sarah Johnson",
-    date: "2023-12-15",
-    type: "Lab Result",
-    notes: "Blood work shows improvement in all markers.",
-  },
-];
+// const mockRecords: MedicalRecord[] = [
+//   {
+//     id: 1,
+//     patientName: "Sarah Johnson",
+//     date: "2024-01-01",
+//     type: "Medical Note",
+//     notes: "Patient reports feeling better after medication adjustment.",
+//   },
+//   {
+//     id: 2,
+//     patientName: "Sarah Johnson",
+//     date: "2023-12-15",
+//     type: "Lab Result",
+//     notes: "Blood work shows improvement in all markers.",
+//   },
+// ];
 
 // Mock session data
 const mockSessions: Session[] = [
@@ -308,11 +312,28 @@ export default function PatientDetailPage() {
   const handleSaveSession = () => {
     if (!editorContent || !selectedSession) return;
 
+    // Find the first header or paragraph to use as title
+    let autoTitle = sessionTitle;
+    if (!autoTitle || autoTitle === "New Session") {
+      // Try to find the first header
+      const headerBlock = editorContent.blocks.find(block => block.type === "header");
+      if (headerBlock && headerBlock.data.text) {
+        autoTitle = headerBlock.data.text;
+      } else {
+        // Try to find the first paragraph
+        const paragraphBlock = editorContent.blocks.find(block => block.type === "paragraph");
+        if (paragraphBlock && paragraphBlock.data.text) {
+          // Limit to first 30 characters
+          autoTitle = paragraphBlock.data.text.substring(0, 30) + (paragraphBlock.data.text.length > 30 ? "..." : "");
+        }
+      }
+    }
+
     if (isCreatingSession) {
       // Creating a new session
       const newSession: Session = {
         ...selectedSession,
-        title: sessionTitle,
+        title: autoTitle || sessionTitle,
         type: sessionType,
         content: editorContent,
         date: new Date().toISOString().split("T")[0],
@@ -328,7 +349,7 @@ export default function PatientDetailPage() {
         session.id === selectedSession.id
           ? {
               ...session,
-              title: sessionTitle,
+              title: autoTitle || sessionTitle,
               type: sessionType,
               content: editorContent,
             }
@@ -338,7 +359,7 @@ export default function PatientDetailPage() {
       setSessions(updatedSessions);
       setSelectedSession({
         ...selectedSession,
-        title: sessionTitle,
+        title: autoTitle || sessionTitle,
         type: sessionType,
         content: editorContent,
       });
@@ -975,11 +996,28 @@ export default function PatientDetailPage() {
                         </IconButton>
                       </Box>
                       {selectedSession && (
-                        <Typography variant="subtitle1">
-                          {isCreatingSession
-                            ? "New Session"
-                            : selectedSession.title}
-                        </Typography>
+                        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+                          <FormControl size="small" sx={{ minWidth: 150 }}>
+                            <InputLabel id="session-type-label">Session Type</InputLabel>
+                            <Select
+                              labelId="session-type-label"
+                              value={sessionType}
+                              label="Session Type"
+                              onChange={(e) => setSessionType(e.target.value)}
+                            >
+                              <MenuItem value="Therapy Session">Therapy Session</MenuItem>
+                              <MenuItem value="Medical Note">Medical Note</MenuItem>
+                              <MenuItem value="Lab Result">Lab Result</MenuItem>
+                              <MenuItem value="Assessment">Assessment</MenuItem>
+                              <MenuItem value="Treatment Plan">Treatment Plan</MenuItem>
+                            </Select>
+                          </FormControl>
+                          <Typography variant="subtitle1">
+                            {isCreatingSession
+                              ? "New Session"
+                              : selectedSession.title}
+                          </Typography>
+                        </Box>
                       )}
                     </Box>
                   </Box>
