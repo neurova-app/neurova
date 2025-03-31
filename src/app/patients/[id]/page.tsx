@@ -251,7 +251,9 @@ export default function PatientDetailPage() {
         content: editorContent,
       };
 
-      createSessionNote(newSession as Omit<SessionNote, "id" | "created_at" | "updated_at">)
+      createSessionNote(
+        newSession as Omit<SessionNote, "id" | "created_at" | "updated_at">
+      )
         .then((createdNote) => {
           if (createdNote) {
             setSelectedSession(createdNote);
@@ -293,10 +295,52 @@ export default function PatientDetailPage() {
   const handleDeleteSession = () => {
     if (!selectedSession) return;
 
-    deleteSessionNote(selectedSession.id);
-    setSelectedSession(null);
-    setEditorContent(null);
-    enqueueSnackbar("Session deleted successfully", { variant: "success" });
+    // Store the ID of the current session
+    const currentSessionId = selectedSession.id;
+
+    // Delete the current session
+    deleteSessionNote(currentSessionId)
+      .then((success) => {
+        if (success) {
+          // Get the updated list of sessions (excluding the deleted one)
+          const updatedSessionNotes = sessionNotes
+            .filter((session) => session.id !== currentSessionId)
+            .slice() // Create a copy to sort
+            .sort((a, b) => {
+              const dateA = a.created_at ? new Date(a.created_at) : new Date();
+              const dateB = b.created_at ? new Date(b.created_at) : new Date();
+              return dateB.getTime() - dateA.getTime(); // Newest to oldest
+            });
+
+          // Find the next session to select
+          let nextSession = null;
+
+          // If there are other sessions available
+          if (updatedSessionNotes.length > 0) {
+            // Just select the first (newest) session
+            nextSession = updatedSessionNotes[0];
+          }
+
+          // Set the next session or clear if none available
+          if (nextSession) {
+            setSelectedSession(nextSession);
+            setEditorContent(nextSession.content);
+          } else {
+            setSelectedSession(null);
+            setEditorContent(null);
+          }
+
+          enqueueSnackbar("Session deleted successfully", {
+            variant: "success",
+          });
+        } else {
+          enqueueSnackbar("Failed to delete session", { variant: "error" });
+        }
+      })
+      .catch((error) => {
+        console.error("Error deleting session:", error);
+        enqueueSnackbar("Failed to delete session", { variant: "error" });
+      });
   };
 
   const calculateAge = (dateOfBirth: string) => {
@@ -353,10 +397,6 @@ export default function PatientDetailPage() {
                   console.log("Patient profile picture updated:", url);
                 }}
               />
-              <Typography variant="h6">{patient.fullName}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Patient ID: #{patient.id}
-              </Typography>
               <Button
                 variant="outlined"
                 startIcon={<EditIcon />}
@@ -365,6 +405,10 @@ export default function PatientDetailPage() {
               >
                 Edit
               </Button>
+              <Typography variant="h6">{patient.fullName}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Patient ID: #{patient.id}
+              </Typography>
             </Box>
           </Box>
         </Grid>
@@ -400,8 +444,9 @@ export default function PatientDetailPage() {
               <Box
                 sx={{
                   p: 3,
-                  height: "70vh",
+                  height: "72vh",
                   display: "flex",
+                  paddingBottom: 2,
                   flexDirection: "column",
                   overflow: "auto",
                 }}
@@ -513,7 +558,7 @@ export default function PatientDetailPage() {
                   </Grid>
 
                   <Box sx={{ mt: 3 }}>
-                    <Typography variant="subtitle1" gutterBottom>
+                    <Typography variant="h6" color="primary" gutterBottom>
                       Emergency Contact
                     </Typography>
                     <Grid container spacing={3}>
@@ -551,7 +596,7 @@ export default function PatientDetailPage() {
                     Address and Demographics
                   </Typography>
                   <Grid container spacing={3}>
-                    <Grid item xs={12}>
+                    <Grid item xs={12} md={3}>
                       <Typography variant="body2" color="text.secondary">
                         Residential Address
                       </Typography>
@@ -559,19 +604,19 @@ export default function PatientDetailPage() {
                         {patient.address || "Not provided"}
                       </Typography>
                     </Grid>
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} md={3}>
                       <Typography variant="body2" color="text.secondary">
                         City
                       </Typography>
                       <Typography variant="body1">{patient.city}</Typography>
                     </Grid>
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} md={3}>
                       <Typography variant="body2" color="text.secondary">
                         State
                       </Typography>
                       <Typography variant="body1">{patient.state}</Typography>
                     </Grid>
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} md={3}>
                       <Typography variant="body2" color="text.secondary">
                         Country
                       </Typography>
