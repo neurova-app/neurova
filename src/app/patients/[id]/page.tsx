@@ -36,21 +36,13 @@ import { usePatients } from "@/contexts/PatientContext";
 import { useSnackbar } from "notistack";
 import { PatientDetailsForm } from "@/components/PatientDetailsForm";
 import PatientProfilePictureUpload from "@/components/PatientProfilePictureUpload";
-import RichTextEditor from "@/components/RichTextEditor";
+import ClientRichTextEditor from "@/components/ClientRichTextEditor";
 import { OutputData } from "@editorjs/editorjs";
 
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
   value: number;
-}
-
-interface MedicalRecord {
-  id: number;
-  patientName: string;
-  date: string;
-  type: string;
-  notes: string;
 }
 
 interface Session {
@@ -78,23 +70,6 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-// Mock records data for now - we'll implement this later
-// const mockRecords: MedicalRecord[] = [
-//   {
-//     id: 1,
-//     patientName: "Sarah Johnson",
-//     date: "2024-01-01",
-//     type: "Medical Note",
-//     notes: "Patient reports feeling better after medication adjustment.",
-//   },
-//   {
-//     id: 2,
-//     patientName: "Sarah Johnson",
-//     date: "2023-12-15",
-//     type: "Lab Result",
-//     notes: "Blood work shows improvement in all markers.",
-//   },
-// ];
 
 // Mock session data
 const mockSessions: Session[] = [
@@ -903,58 +878,36 @@ export default function PatientDetailPage() {
                           selected={selectedSession?.id === session.id}
                           onClick={() => handleSessionSelect(session)}
                           sx={{
-                            "&:hover": { bgcolor: "background.default" },
+                            "&:hover": {
+                              backgroundColor: "rgba(0, 0, 0, 0.04)",
+                            },
                           }}
                         >
                           <ListItemText
                             primary={
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                }}
-                              >
-                                <Typography variant="subtitle2">
+                              <Box component="div">
+                                <Typography variant="subtitle1" component="div">
                                   {session.title}
                                 </Typography>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                >
+                                <Typography variant="caption" component="div" color="text.secondary">
                                   {session.date}
                                 </Typography>
                               </Box>
                             }
                             secondary={
-                              <Box component="div">
-                                <Box
-                                  component="span"
-                                  sx={{ display: "inline-block" }}
-                                >
-                                  <Chip
-                                    label={session.type}
-                                    size="small"
-                                    color={getTypeColor(session.type)}
-                                    sx={{ my: 0.5 }}
-                                  />
+                              <>
+                                <Chip
+                                  label={session.type}
+                                  size="small"
+                                  color={getTypeColor(session.type)}
+                                  sx={{ my: 0.5, display: "inline-block" }}
+                                />
+                                <Box component="span" sx={{ display: "block", mt: 0.5 }}>
+                                  {session.content.blocks[0]?.data?.text || "No content"}
                                 </Box>
-                                <Typography
-                                  variant="body2"
-                                  component="span"
-                                  color="text.secondary"
-                                  sx={{
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    display: "-webkit-box",
-                                    WebkitLineClamp: 2,
-                                    WebkitBoxOrient: "vertical",
-                                  }}
-                                >
-                                  {session.content.blocks[0]?.data?.text ||
-                                    "No content"}
-                                </Typography>
-                              </Box>
+                              </>
                             }
+                            secondaryTypographyProps={{ component: "div" }}
                           />
                         </ListItemButton>
                         <Divider />
@@ -1028,7 +981,7 @@ export default function PatientDetailPage() {
                       height: "calc(100vh - 280px)",
                     }}
                   >
-                    <RichTextEditor
+                    <ClientRichTextEditor
                       data={editorContent || undefined}
                       onChange={setEditorContent}
                       readOnly={!selectedSession && !isCreatingSession}
