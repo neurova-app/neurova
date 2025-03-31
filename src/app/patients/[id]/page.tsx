@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Box,
   Typography,
@@ -33,6 +33,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { useSearchParams, useParams } from "next/navigation";
 import { usePatients } from "@/contexts/PatientContext";
+import { useSessionNotes } from "@/contexts/SessionNoteContext";
 import { useSnackbar } from "notistack";
 import { PatientDetailsForm } from "@/components/PatientDetailsForm";
 import PatientProfilePictureUpload from "@/components/PatientProfilePictureUpload";
@@ -45,14 +46,7 @@ interface TabPanelProps {
   value: number;
 }
 
-interface Session {
-  id: string;
-  patientName: string;
-  date: string;
-  type: "Medical Note" | "Lab Result" | "Therapy Session" | string;
-  title: string;
-  content: OutputData;
-}
+// We'll use the SessionNote interface from our context instead
 
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
@@ -69,148 +63,6 @@ function TabPanel(props: TabPanelProps) {
     </div>
   );
 }
-
-// Mock session data
-const mockSessions: Session[] = [
-  {
-    id: "1",
-    patientName: "Sarah Johnson",
-    date: "2024-03-15",
-    type: "Therapy Session",
-    title: "Initial Assessment",
-    content: {
-      time: 1616069996740,
-      blocks: [
-        {
-          type: "header",
-          data: {
-            text: "Initial Assessment Session",
-            level: 2,
-          },
-        },
-        {
-          type: "paragraph",
-          data: {
-            text: "Patient presented with symptoms of anxiety and depression. Reports difficulty sleeping and concentrating at work.",
-          },
-        },
-        {
-          type: "list",
-          data: {
-            style: "unordered",
-            items: [
-              "Sleep disturbance - 3 hours per night",
-              "Decreased appetite",
-              "Social withdrawal",
-              "Difficulty concentrating",
-            ],
-          },
-        },
-        {
-          type: "paragraph",
-          data: {
-            text: "Will begin weekly therapy sessions focusing on CBT techniques and mindfulness practices.",
-          },
-        },
-      ],
-      version: "2.26.5",
-    },
-  },
-  {
-    id: "2",
-    patientName: "Sarah Johnson",
-    date: "2024-03-22",
-    type: "Therapy Session",
-    title: "Follow-up Session",
-    content: {
-      time: 1616069996740,
-      blocks: [
-        {
-          type: "header",
-          data: {
-            text: "Follow-up Session",
-            level: 2,
-          },
-        },
-        {
-          type: "paragraph",
-          data: {
-            text: "Patient reports slight improvement in sleep patterns after implementing bedtime routine. Still experiencing anxiety at work.",
-          },
-        },
-        {
-          type: "checklist",
-          data: {
-            items: [
-              {
-                text: "Practiced deep breathing exercises",
-                checked: true,
-              },
-              {
-                text: "Maintained sleep journal",
-                checked: true,
-              },
-              {
-                text: "Reduced screen time before bed",
-                checked: false,
-              },
-            ],
-          },
-        },
-        {
-          type: "paragraph",
-          data: {
-            text: "Will continue with current treatment plan and add stress management techniques for workplace situations.",
-          },
-        },
-      ],
-      version: "2.26.5",
-    },
-  },
-  {
-    id: "3",
-    patientName: "Sarah Johnson",
-    date: "2024-03-29",
-    type: "Medical Note",
-    title: "Medication Review",
-    content: {
-      time: 1616069996740,
-      blocks: [
-        {
-          type: "header",
-          data: {
-            text: "Medication Review",
-            level: 2,
-          },
-        },
-        {
-          type: "paragraph",
-          data: {
-            text: "Patient reports side effects from current medication including dry mouth and mild headaches. Considering adjustment to dosage or alternative medication.",
-          },
-        },
-        {
-          type: "table",
-          data: {
-            withHeadings: true,
-            content: [
-              ["Medication", "Dosage", "Frequency", "Side Effects"],
-              ["Sertraline", "50mg", "Daily", "Dry mouth, headache"],
-              ["Lorazepam", "0.5mg", "As needed", "Drowsiness"],
-            ],
-          },
-        },
-        {
-          type: "paragraph",
-          data: {
-            text: "Will monitor for one more week before making any changes to medication regimen.",
-          },
-        },
-      ],
-      version: "2.26.5",
-    },
-  },
-];
 
 const getTypeColor = (type: string) => {
   switch (type) {
@@ -261,24 +113,54 @@ export default function PatientDetailPage() {
   const params = useParams();
   const { patients, loading, error } = usePatients();
   const { enqueueSnackbar } = useSnackbar();
+  const { 
+    sessionNotes, 
+    loading: sessionNotesLoading, 
+    getSessionNotesByPatientId,
+    createSessionNote,
+    updateSessionNote,
+    deleteSessionNote
+  } = useSessionNotes();
 
   const initialTab = searchParams.get("tab");
   const [tabValue, setTabValue] = React.useState(
-    initialTab ? parseInt(initialTab) : 0
-  );
+    initialTab ? parseInt(initialTab) : 0);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
 
   // Session registry state
-  const [sessions, setSessions] = React.useState<Session[]>(mockSessions);
-  const [selectedSession, setSelectedSession] = React.useState<Session | null>(
-    null
-  );
+  const [selectedSession, setSelectedSession] = React.useState<SessionNote | null>(null);
   const [isCreatingSession, setIsCreatingSession] = React.useState(false);
-  const [editorContent, setEditorContent] = React.useState<OutputData | null>(
-    null
-  );
-  const [sessionType, setSessionType] =
-    React.useState<string>("Therapy Session");
+  const [editorContent, setEditorContent] = React.useState<OutputData | null>(null);
+  const [sessionType, setSessionType] = React.useState<string>("Therapy Session");
+
+  const patientId = params.id as string;
+
+  // Find the patient by ID or by slug
+  const patient = patients.find((p) => {
+    // If the URL parameter is a UUID, match directly
+    if (patientId.includes("-") && p.id === patientId) {
+      return true;
+    }
+
+    // Otherwise, check if it's a slug that contains the patient's name and ID
+    if (p.id && p.fullName) {
+      // Extract the ID suffix from the slug (last part after the last hyphen)
+      const slugParts = patientId.split("-");
+      const idSuffix = slugParts[slugParts.length - 1];
+
+      // Check if the ID starts with this suffix
+      return p.id.startsWith(idSuffix);
+    }
+
+    return false;
+  });
+
+  // Load session notes when the patient ID changes or when we switch to the sessions tab
+  useEffect(() => {
+    if (patient?.id && tabValue === 2) {
+      getSessionNotesByPatientId(patient.id);
+    }
+  }, [patient?.id, tabValue, getSessionNotesByPatientId]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -289,33 +171,47 @@ export default function PatientDetailPage() {
     }
   };
 
-  const handleSessionSelect = (session: Session) => {
+  const handleSessionSelect = (session: SessionNote) => {
     setSelectedSession(session);
     setEditorContent(session.content);
     setIsCreatingSession(false);
   };
 
   const handleCreateSession = () => {
-    const newSession: Session = {
-      id: Date.now().toString(),
-      patientName: patient?.fullName || "Unknown Patient",
-      date: new Date().toISOString().split("T")[0],
-      type: "Therapy Session",
+    if (!patient) return;
+    
+    const newSession: Omit<SessionNote, 'id' | 'created_at' | 'updated_at'> = {
+      patient_id: patient.id,
+      patient_name: patient.fullName || "Unknown Patient",
       title: "New Session",
+      type: "Therapy Session",
+      date: new Date().toISOString().split("T")[0],
       content: {
         time: Date.now(),
-        blocks: [],
+        blocks: [
+          {
+            type: "paragraph",
+            data: {
+              text: "",
+            },
+          },
+        ],
         version: "2.26.5",
       },
+      patientName: patient.fullName || "Unknown Patient"
     };
 
-    setSelectedSession(newSession);
+    // Create a temporary session for the UI
+    setSelectedSession({
+      id: `temp-${Date.now()}`,
+      ...newSession
+    });
     setEditorContent(newSession.content);
     setIsCreatingSession(true);
   };
 
   const handleSaveSession = () => {
-    if (!editorContent || !selectedSession) return;
+    if (!editorContent || !selectedSession || !patient) return;
 
     // Always generate title based on current content
     let autoTitle = "New Session";
@@ -341,49 +237,54 @@ export default function PatientDetailPage() {
 
     if (isCreatingSession) {
       // Creating a new session
-      const newSession: Session = {
-        ...selectedSession,
+      const newSession = {
+        patient_id: patient.id,
+        patient_name: patient.fullName || "Unknown Patient",
         title: autoTitle,
         type: sessionType,
-        content: editorContent,
         date: new Date().toISOString().split("T")[0],
+        content: editorContent
       };
 
-      setSessions([newSession, ...sessions]);
-      setSelectedSession(newSession);
-      setIsCreatingSession(false);
-      enqueueSnackbar("Session created successfully", { variant: "success" });
+      createSessionNote(newSession)
+        .then((createdNote) => {
+          if (createdNote) {
+            setSelectedSession(createdNote);
+            setIsCreatingSession(false);
+            enqueueSnackbar("Session created successfully", { variant: "success" });
+          }
+        })
+        .catch((error) => {
+          console.error("Error creating session:", error);
+          enqueueSnackbar("Failed to create session", { variant: "error" });
+        });
     } else if (selectedSession) {
       // Updating an existing session
-      const updatedSessions = sessions.map((session) =>
-        session.id === selectedSession.id
-          ? {
-              ...session,
-              title: autoTitle,
-              type: sessionType,
-              content: editorContent,
-            }
-          : session
-      );
-
-      setSessions(updatedSessions);
-      setSelectedSession({
-        ...selectedSession,
+      const updatedSession = {
+        id: selectedSession.id,
         title: autoTitle,
         type: sessionType,
-        content: editorContent,
-      });
-      enqueueSnackbar("Session updated successfully", { variant: "success" });
+        content: editorContent
+      };
+
+      updateSessionNote(updatedSession)
+        .then((updatedNote) => {
+          if (updatedNote) {
+            setSelectedSession(updatedNote);
+            enqueueSnackbar("Session updated successfully", { variant: "success" });
+          }
+        })
+        .catch((error) => {
+          console.error("Error updating session:", error);
+          enqueueSnackbar("Failed to update session", { variant: "error" });
+        });
     }
   };
 
   const handleDeleteSession = () => {
     if (!selectedSession) return;
 
-    const updatedSessions = sessions.filter(
-      (session) => session.id !== selectedSession.id
-    );
-    setSessions(updatedSessions);
+    deleteSessionNote(selectedSession.id);
     setSelectedSession(null);
     setEditorContent(null);
     enqueueSnackbar("Session deleted successfully", { variant: "success" });
@@ -399,28 +300,6 @@ export default function PatientDetailPage() {
     }
     return age;
   };
-
-  const patientId = params.id as string;
-
-  // Find the patient by ID or by slug
-  const patient = patients.find((p) => {
-    // If the URL parameter is a UUID, match directly
-    if (patientId.includes("-") && p.id === patientId) {
-      return true;
-    }
-
-    // Otherwise, check if it's a slug that contains the patient's name and ID
-    if (p.id && p.fullName) {
-      // Extract the ID suffix from the slug (last part after the last hyphen)
-      const slugParts = patientId.split("-");
-      const idSuffix = slugParts[slugParts.length - 1];
-
-      // Check if the ID starts with this suffix
-      return p.id.startsWith(idSuffix);
-    }
-
-    return false;
-  });
 
   if (loading) {
     return (
@@ -446,6 +325,8 @@ export default function PatientDetailPage() {
     enqueueSnackbar("Patient not found", { variant: "error" });
     return null;
   }
+
+  console.log(sessionNotes)
 
   return (
     <Box>
@@ -899,62 +780,74 @@ export default function PatientDetailPage() {
 
                   <Divider />
 
-                  <List
-                    sx={{
-                      height: "calc(100vh - 280px)",
-                      overflow: "auto",
-                      paddingBottom: 12,
-                    }}
-                  >
-                    {sessions.map((session) => (
-                      <React.Fragment key={session.id}>
-                        <ListItemButton
-                          selected={selectedSession?.id === session.id}
-                          onClick={() => handleSessionSelect(session)}
-                          sx={{
-                            "&:hover": {
-                              backgroundColor: "rgba(0, 0, 0, 0.04)",
-                            },
-                          }}
-                        >
-                          <ListItemText
-                            primary={
-                              <Box component="div">
-                                <Typography variant="subtitle1" component="div">
-                                  {session.title}
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  component="div"
-                                  color="text.secondary"
-                                >
-                                  {session.date}
-                                </Typography>
-                              </Box>
-                            }
-                            secondary={
-                              <>
-                                <Chip
-                                  label={session.type}
-                                  size="small"
-                                  color={getTypeColor(session.type)}
-                                  sx={{ my: 0.5, display: "inline-block" }}
-                                />
-                                <Box
-                                  component="span"
-                                  sx={{ display: "block", mt: 0.5 }}
-                                >
-                                  {getContentSummary(session.content)}
-                                </Box>
-                              </>
-                            }
-                            secondaryTypographyProps={{ component: "div" }}
-                          />
-                        </ListItemButton>
-                        <Divider />
-                      </React.Fragment>
-                    ))}
-                  </List>
+                  {sessionNotesLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    <List
+                      sx={{
+                        height: "calc(100vh - 280px)",
+                        overflow: "auto",
+                        paddingBottom: 12,
+                      }}
+                    >
+                      {sessionNotes
+                        .slice()
+                        .sort((a, b) =>
+                          new Date(b.created_at).getTime() -
+                          new Date(a.created_at).getTime()
+                        )
+                        .map((session) => (
+                          <React.Fragment key={session.id}>
+                            <ListItemButton
+                              selected={selectedSession?.id === session.id}
+                              onClick={() => handleSessionSelect(session)}
+                              sx={{
+                                "&:hover": {
+                                  backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                },
+                              }}
+                            >
+                              <ListItemText
+                                primary={
+                                  <Box component="div">
+                                    <Typography variant="subtitle1" component="div">
+                                      {session.title}
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      component="div"
+                                      color="text.secondary"
+                                    >
+                                      {session.date}
+                                    </Typography>
+                                  </Box>
+                                }
+                                secondary={
+                                  <>
+                                    <Chip
+                                      label={session.type}
+                                      size="small"
+                                      color={getTypeColor(session.type)}
+                                      sx={{ my: 0.5, display: "inline-block" }}
+                                    />
+                                    <Box
+                                      component="span"
+                                      sx={{ display: "block", mt: 0.5 }}
+                                    >
+                                      {getContentSummary(session.content)}
+                                    </Box>
+                                  </>
+                                }
+                                secondaryTypographyProps={{ component: "div" }}
+                              />
+                            </ListItemButton>
+                            <Divider />
+                          </React.Fragment>
+                        ))}
+                    </List>
+                  )}
                 </Card>
 
                 {/* Main Content - Session Editor */}
