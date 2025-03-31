@@ -31,6 +31,7 @@ import { usePatients } from "@/contexts/PatientContext";
 import { useSnackbar } from "notistack";
 import { PatientDetailsForm } from "@/components/PatientDetailsForm";
 import PatientProfilePictureUpload from "@/components/PatientProfilePictureUpload";
+import RichTextEditor from "@/components/RichTextEditor";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -725,15 +726,7 @@ export default function PatientDetailPage() {
                       height: "calc(100vh - 280px)",
                     }}
                   >
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={20}
-                      placeholder="Enter your medical notes here..."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      variant="outlined"
-                    />
+                    <RichTextEditor />
                   </Box>
                 </Card>
               </Box>
