@@ -95,6 +95,32 @@ export default function DashboardPage() {
 
     if (user) {
       console.log(`Dashboard loaded for user: ${user.name} (${user.id})`);
+      
+      // Check if user signed in with Google but calendar isn't connected yet
+      const checkAndConnectCalendar = async () => {
+        try {
+          const { data } = await supabase.auth.getUser();
+          const isGoogleUser = data.user?.app_metadata?.providers?.includes('google');
+          
+          if (isGoogleUser && !hasCalendarConnected) {
+            console.log("User signed in with Google but calendar not connected yet. Connecting automatically...");
+            
+            // Update user metadata to set calendar_connected flag
+            await supabase.auth.updateUser({
+              data: {
+                calendar_connected: true,
+              },
+            });
+            
+            // Refresh the page to apply changes
+            window.location.reload();
+          }
+        } catch (error) {
+          console.error("Error checking Google sign-in status:", error);
+        }
+      };
+      
+      checkAndConnectCalendar();
     }
   }, [hasCalendarConnected, user]);
 
