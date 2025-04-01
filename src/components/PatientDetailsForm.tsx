@@ -30,6 +30,7 @@ const mandatoryFields = [
   "gender",
   "nationalId",
   "phoneNumber",
+  "email",
   "emergencyContact.name",
   "emergencyContact.phoneNumber",
   "reasonForConsultation"
@@ -111,10 +112,18 @@ export const PatientDetailsForm = ({
       }
     });
     
+    // Validate email format if email is provided
+    if (formData.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        errors["email"] = "Please enter a valid email address";
+      }
+    }
+    
     // If there are validation errors, display them and stop submission
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
-      enqueueSnackbar("Please fill in all required fields", { variant: "error" });
+      enqueueSnackbar("Please fill in all required fields correctly", { variant: "error" });
       return;
     }
     
@@ -400,10 +409,13 @@ export const PatientDetailsForm = ({
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Email"
+                label="Email*"
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange("email", e.target.value)}
+                required
+                error={!!validationErrors["email"]}
+                helperText={validationErrors["email"] || ""}
               />
             </Grid>
 

@@ -14,6 +14,7 @@ import {
   Autocomplete,
   Typography,
   Alert,
+  CircularProgress,
 } from "@mui/material";
 import { Appointment } from "@/types";
 import { supabase } from "@/utils/supabase";
@@ -65,6 +66,7 @@ export default function AppointmentForm({
     full_name: appointment.patientName || "",
   });
   const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [noPatients, setNoPatients] = useState(false);
 
   const fetchPatients = useCallback(async () => {
@@ -206,7 +208,7 @@ export default function AppointmentForm({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedPatient) {
@@ -214,10 +216,19 @@ export default function AppointmentForm({
       return;
     }
 
-    onSave(formData as Appointment, {
-      full_name: selectedPatient.full_name,
-      email: selectedPatient.email,
-    });
+    // Set saving state to true to show loading indicator
+    setIsSaving(true);
+    
+    try {
+      onSave(formData as Appointment, {
+        full_name: selectedPatient.full_name,
+        email: selectedPatient.email,
+      });
+    } finally {
+      // Note: We're not setting isSaving to false here because the component will likely be closed by the parent
+      // after the save is complete. If the component stays open for some reason, you may want to set isSaving to false
+      // in a useEffect that runs when certain props change.
+    }
   };
 
   const handleAddPatientClick = () => {
@@ -341,9 +352,17 @@ export default function AppointmentForm({
       </Grid>
 
       <DialogActions sx={{ mt: 3 }}>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button type="submit" variant="contained" color="primary">
-          Save Appointment
+        <Button onClick={onClose} disabled={isSaving}>
+          Cancel
+        </Button>
+        <Button 
+          type="submit" 
+          variant="contained" 
+          color="primary"
+          disabled={isSaving}
+          startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : null}
+        >
+          {isSaving ? "Saving..." : "Save Appointment"}
         </Button>
       </DialogActions>
     </Box>
