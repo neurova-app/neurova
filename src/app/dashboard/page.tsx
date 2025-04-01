@@ -367,138 +367,176 @@ export default function DashboardPage() {
                 </Button>
               </Box>
             ) : upcomingAppointments.length > 0 ? (
-              <List>
-                {upcomingAppointments.map((appointment) => (
-                  <ListItem
-                    key={appointment.id}
-                    disablePadding
-                    secondaryAction={
-                      appointment.meetLink && (
-                        <Box sx={{ display: "flex", gap: 1 }}>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            color="error"
-                            startIcon={
-                              cancelingAppointment === appointment.id ? (
-                                <CircularProgress size={16} color="error" />
-                              ) : (
-                                <CancelIcon />
-                              )
-                            }
-                            onClick={() =>
-                              handleCancelAppointment(appointment.id)
-                            }
-                            disabled={cancelingAppointment === appointment.id}
-                            sx={{ fontSize: "0.75rem" }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            color="primary"
-                            startIcon={<VideocamIcon />}
-                            onClick={() =>
-                              window.open(appointment.meetLink, "_blank")
-                            }
-                            sx={{ fontSize: "0.75rem" }}
-                          >
-                            Join
-                          </Button>
-                        </Box>
-                      )
-                    }
-                  >
-                    <ListItemButton>
-                      <ListItemAvatar>
-                        <Avatar
-                          src={(() => {
-                            // Find the patient in our patients list to get their profile picture
-                            const patientName = appointment.patientName;
-                            const patient = patients.find(
-                              (p) => p.fullName === patientName
-                            );
-                            return patient?.profilePicture || "";
-                          })()}
-                        >
-                          {/* Always render initials as fallback */}
-                          {appointment.patientName
-                            .split(" ")
-                            .map((name) => name[0])
-                            .join("")
-                            .substring(0, 2)}
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={appointment.patientName}
-                        secondary={
-                          <>
-                            <Typography
-                              component="span"
-                              variant="body2"
-                              color="text.primary"
+              <Box
+                sx={{
+                  maxHeight: "70vh",
+                  overflowY: "auto",
+                  "&::-webkit-scrollbar": {
+                    width: "8px",
+                  },
+                  "&::-webkit-scrollbar-track": {
+                    background: "#f1f1f1",
+                    borderRadius: "10px",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: "#888",
+                    borderRadius: "10px",
+                  },
+                  "&::-webkit-scrollbar-thumb:hover": {
+                    background: "#555",
+                  },
+                }}
+              >
+                <List>
+                  {upcomingAppointments.map((appointment) => (
+                    <ListItem
+                      key={appointment.id}
+                      disablePadding
+                      secondaryAction={
+                        appointment.meetLink && (
+                          <Box sx={{ display: "flex", gap: 1 }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="error"
+                              startIcon={
+                                cancelingAppointment === appointment.id ? (
+                                  <CircularProgress size={16} color="error" />
+                                ) : (
+                                  <CancelIcon />
+                                )
+                              }
+                              onClick={() =>
+                                handleCancelAppointment(appointment.id)
+                              }
+                              disabled={cancelingAppointment === appointment.id}
+                              sx={{ fontSize: "0.75rem" }}
                             >
-                              {(() => {
-                                // Parse the date string directly to avoid timezone issues
-                                if (!appointment.date) return "No date";
+                              Cancel
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="primary"
+                              startIcon={<VideocamIcon />}
+                              onClick={() =>
+                                window.open(appointment.meetLink, "_blank")
+                              }
+                              sx={{ fontSize: "0.75rem" }}
+                            >
+                              Join
+                            </Button>
+                          </Box>
+                        )
+                      }
+                    >
+                      <ListItemButton>
+                        <ListItemAvatar>
+                          <Avatar
+                            src={(() => {
+                              // Find the patient in our patients list to get their profile picture
+                              const patientName = appointment.patientName;
+                              const patient = patients.find(
+                                (p) => p.fullName === patientName
+                              );
+                              return patient?.profilePicture || "";
+                            })()}
+                          >
+                            {/* Always render initials as fallback */}
+                            {appointment.patientName
+                              .split(" ")
+                              .map((name) => name[0])
+                              .join("")
+                              .substring(0, 2)}
+                          </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={
+                            <>
+                              <Typography
+                                component="span"
+                                variant="h6"
+                                color="text.primary"
+                              >
+                                {`${appointment.type} - ${appointment.patientName}`}
+                              </Typography>
+                            </>
+                          }
+                          secondary={
+                            <>
+                              <Typography
+                                component="span"
+                                variant="body2"
+                                color="text.primary"
+                              >
+                                {(() => {
+                                  // Parse the date string directly to avoid timezone issues
+                                  if (!appointment.date) return "No date";
 
-                                const [year, month, day] = appointment.date
-                                  .split("-")
-                                  .map(Number);
-                                const appointmentDate = new Date(
-                                  year,
-                                  month - 1,
-                                  day
-                                );
+                                  const [year, month, day] = appointment.date
+                                    .split("-")
+                                    .map(Number);
+                                  const appointmentDate = new Date(
+                                    year,
+                                    month - 1,
+                                    day
+                                  );
 
-                                return appointmentDate.toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    year: "numeric",
-                                    month: "long",
-                                    day: "numeric",
-                                  }
-                                );
-                              })()}
+                                  return appointmentDate.toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      year: "numeric",
+                                      month: "long",
+                                      day: "numeric",
+                                    }
+                                  );
+                                })()}
+                              </Typography>
                               <br />
-                              {(() => {
-                                // Convert start time to AM/PM format
-                                if (!appointment.startTime) return "No time";
+                              <Typography
+                                component="span"
+                                variant="body2"
+                                color="grey.500"
+                              >
+                                {(() => {
+                                  // Convert start time to AM/PM format
+                                  if (!appointment.startTime) return "No time";
 
-                                const [hours, minutes] = appointment.startTime
-                                  .split(":")
-                                  .map(Number);
-                                const startPeriod = hours >= 12 ? "PM" : "AM";
-                                const startHours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
-                                const startFormatted = `${startHours}:${minutes
-                                  .toString()
-                                  .padStart(2, "0")} ${startPeriod}`;
+                                  const [hours, minutes] = appointment.startTime
+                                    .split(":")
+                                    .map(Number);
+                                  const startPeriod = hours >= 12 ? "PM" : "AM";
+                                  const startHours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
+                                  const startFormatted = `${startHours}:${minutes
+                                    .toString()
+                                    .padStart(2, "0")} ${startPeriod}`;
 
-                                // Convert end time to AM/PM format if available
-                                if (!appointment.endTime)
-                                  return `${startFormatted}`;
+                                  // Convert end time to AM/PM format if available
+                                  if (!appointment.endTime)
+                                    return `${startFormatted}`;
 
-                                const [endHours, endMinutes] =
-                                  appointment.endTime.split(":").map(Number);
-                                const endPeriod = endHours >= 12 ? "PM" : "AM";
-                                const displayEndHours = endHours % 12 || 12; // Convert 0 to 12 for 12 AM
-                                const endFormatted = `${displayEndHours}:${endMinutes
-                                  .toString()
-                                  .padStart(2, "0")} ${endPeriod}`;
+                                  const [endHours, endMinutes] =
+                                    appointment.endTime.split(":").map(Number);
+                                  const endPeriod =
+                                    endHours >= 12 ? "PM" : "AM";
+                                  const displayEndHours = endHours % 12 || 12; // Convert 0 to 12 for 12 AM
+                                  const endFormatted = `${displayEndHours}:${endMinutes
+                                    .toString()
+                                    .padStart(2, "0")} ${endPeriod}`;
 
-                                return `${startFormatted} - ${endFormatted}`;
-                              })()}
-                            </Typography>
-                            <br />
-                            {appointment.type}
-                          </>
-                        }
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                ))}
-              </List>
+                                  return `${startFormatted} - ${endFormatted}`;
+                                })()}
+                              </Typography>
+                              <br />
+                              {/* {appointment.type} */}
+                            </>
+                          }
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
             ) : (
               <Box sx={{ textAlign: "center", p: 3 }}>
                 <Typography color="text.secondary">
