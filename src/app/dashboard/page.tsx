@@ -79,7 +79,7 @@ const notifications: Notification[] = [
 
 export default function DashboardPage() {
   // Keep router for potential future use
-  const { user, hasCalendarConnected } = useAuth();
+  const { user, hasCalendarConnected, loginWithGoogle } = useAuth();
   const [isNewPatientOpen, setIsNewPatientOpen] = React.useState(false);
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = React.useState(false);
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(true);
@@ -182,8 +182,12 @@ export default function DashboardPage() {
   const handleConnectCalendar = async () => {
     try {
       console.log("Connecting to Google Calendar...");
-
-      // Use Supabase to update user metadata
+      setCalendarLoading(true);
+      
+      // Use the Auth context's loginWithGoogle function to trigger OAuth flow
+      await loginWithGoogle();
+      
+      // After successful login, update user metadata
       const {
         data: { user: authUser },
       } = await supabase.auth.updateUser({
@@ -195,9 +199,19 @@ export default function DashboardPage() {
       if (authUser) {
         setShowCalendarPrompt(false);
         setShowSuccessAlert(true);
+        
+        // Fetch calendar events after successful connection
+        fetchCalendarEvents();
+        
+        // Hide success message after 5 seconds
+        setTimeout(() => {
+          setShowSuccessAlert(false);
+        }, 5000);
       }
     } catch (error) {
       console.error("Error connecting to Google Calendar:", error);
+    } finally {
+      setCalendarLoading(false);
     }
   };
 
@@ -253,8 +267,9 @@ export default function DashboardPage() {
                 Connect Your Google Calendar
               </Typography>
               <Typography variant="body2" color="primary.light">
-                Sync your appointments with Google Calendar for better
-                scheduling and reminders.
+                You must connect your Google Calendar to use appointment
+                features. This enables scheduling with Google Meet links for
+                virtual sessions.
               </Typography>
             </Box>
 
@@ -310,21 +325,33 @@ export default function DashboardPage() {
       {/* Middle Column - Calendar */}
       <Grid item xs={12} md={6}>
         <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-          <CardHeader
-            title="Upcoming Appointments"
-            action={
-              <IconButton
-                aria-label="add appointment"
-                onClick={() => setIsNewAppointmentOpen(true)}
-              >
-                <AddIcon />
-              </IconButton>
-            }
-          />
+          <CardHeader title="Upcoming Appointments" />
           <CardContent sx={{ flexGrow: 1, overflow: "auto" }}>
             {calendarLoading ? (
               <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
                 <CircularProgress />
+              </Box>
+            ) : showCalendarPrompt ? (
+              <Box sx={{ textAlign: "center", p: 3 }}>
+                <Typography color="text.secondary" gutterBottom>
+                  Connect Google Calendar to manage appointments
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 2 }}
+                >
+                  You need to connect your Google Calendar to create and view
+                  appointments
+                </Typography>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<GoogleIcon />}
+                  onClick={handleConnectCalendar}
+                >
+                  Connect Google Calendar
+                </Button>
               </Box>
             ) : upcomingAppointments.length > 0 ? (
               <List>
@@ -386,6 +413,7 @@ export default function DashboardPage() {
                   startIcon={<AddIcon />}
                   onClick={() => setIsNewAppointmentOpen(true)}
                   sx={{ mt: 2 }}
+                  disabled={showCalendarPrompt}
                 >
                   Schedule Appointment
                 </Button>
@@ -448,6 +476,7 @@ export default function DashboardPage() {
             startIcon={<EventIcon />}
             onClick={() => setIsNewAppointmentOpen(true)}
             sx={{ mb: 2 }}
+            disabled={showCalendarPrompt}
           >
             Schedule Appointment
           </Button>
