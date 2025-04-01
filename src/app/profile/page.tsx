@@ -278,9 +278,8 @@ export default function ProfilePage() {
                 <TextField
                   fullWidth
                   label="Years of Experience"
-                  type="number"
                   value={formData.yearsExperience}
-                  onChange={(e) => handleInputChange('yearsExperience', parseInt(e.target.value) || 0)}
+                  onChange={(e) => handleInputChange('yearsExperience', e.target.value)}
                   InputProps={{
                     endAdornment: <InputAdornment position="end">years</InputAdornment>,
                   }}

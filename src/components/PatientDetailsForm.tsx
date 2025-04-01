@@ -14,12 +14,26 @@ import {
   IconButton,
   DialogActions,
   CircularProgress,
+  Tooltip,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import InfoIcon from "@mui/icons-material/Info";
 import { Patient } from "@/types/patient";
 import { usePatients } from "@/contexts/PatientContext";
 import { useSnackbar } from "notistack";
+
+// Define mandatory fields for validation
+const mandatoryFields = [
+  "fullName",
+  "dateOfBirth",
+  "gender",
+  "nationalId",
+  "phoneNumber",
+  "emergencyContact.name",
+  "emergencyContact.phoneNumber",
+  "reasonForConsultation"
+];
 
 const initialFormData: Patient = {
   fullName: "",
@@ -70,13 +84,75 @@ export const PatientDetailsForm = ({
     patient ?? initialFormData
   );
   const [saving, setSaving] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const { updatePatient, addPatient } = usePatients();
   const { enqueueSnackbar } = useSnackbar();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate mandatory fields
+    const errors: Record<string, string> = {};
+    
+    // Check basic fields
+    mandatoryFields.forEach(field => {
+      if (field.includes('.')) {
+        // Handle nested fields like emergencyContact.name
+        const [parent, child] = field.split('.');
+        // @ts-expect-error ts(7053)
+        if (!formData[parent] || !formData[parent][child]) {
+          errors[field] = 'This field is required';
+        }
+      } else {
+        // @ts-expect-error ts(7053)
+        if (!formData[field]) {
+          errors[field] = 'This field is required';
+        }
+      }
+    });
+    
+    // If there are validation errors, display them and stop submission
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      enqueueSnackbar("Please fill in all required fields", { variant: "error" });
+      return;
+    }
+    
+    try {
+      if (formData.id) {
+        // Update existing patient
+        await updatePatient(formData.id, formData);
+        enqueueSnackbar("Patient updated successfully", { variant: "success" });
+      } else {
+        // Create new patient - remove the empty id field
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id, ...patientWithoutId } = formData;
+        await addPatient(patientWithoutId);
+        enqueueSnackbar("Patient created successfully", { variant: "success" });
+      }
+      onClose?.();
+    } catch (error: unknown) {
+      console.error("Error saving patient:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to save patient";
+      enqueueSnackbar(`Error: ${errorMessage}`, { variant: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleInputChange = (
     field: keyof Patient,
     value: string | number | boolean
   ) => {
+    // Clear validation error when field is changed
+    if (validationErrors[field as string]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field as string];
+        return newErrors;
+      });
+    }
+    
     // Special handling for date of birth to ensure timezone consistency
     if (field === "dateOfBirth") {
       // Store the date string directly without timezone conversion
@@ -193,35 +269,18 @@ export const PatientDetailsForm = ({
     }));
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      if (formData.id) {
-        // Update existing patient
-        await updatePatient(formData.id, formData);
-        enqueueSnackbar("Patient updated successfully", { variant: "success" });
-      } else {
-        // Create new patient - remove the empty id field
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id, ...patientWithoutId } = formData;
-        await addPatient(patientWithoutId);
-        enqueueSnackbar("Patient created successfully", { variant: "success" });
-      }
-      onClose?.();
-    } catch (error: unknown) {
-      console.error("Error saving patient:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to save patient";
-      enqueueSnackbar(`Error: ${errorMessage}`, { variant: "error" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <Dialog open={open} maxWidth="md" fullWidth onClose={onClose ?? (() => {})}>
-      <DialogTitle>Edit Patient Details</DialogTitle>
+      <DialogTitle>
+        Edit Patient Details
+        <Tooltip title="Fields marked with * are mandatory">
+          <IconButton size="small" sx={{ ml: 1 }}>
+            <InfoIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </DialogTitle>
       <DialogContent>
-        <Box component="form" sx={{ mt: 2 }}>
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
           <Grid container spacing={3}>
             {/* Personal Information */}
             <Grid item xs={12}>
@@ -232,31 +291,39 @@ export const PatientDetailsForm = ({
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Full Name"
+                label="Full Name*"
                 value={formData.fullName}
                 onChange={(e) => handleInputChange("fullName", e.target.value)}
+                required
+                error={!!validationErrors["fullName"]}
+                helperText={validationErrors["fullName"] || ""}
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Date of Birth"
+                label="Date of Birth*"
                 type="date"
                 value={formData.dateOfBirth}
                 onChange={(e) =>
                   handleInputChange("dateOfBirth", e.target.value)
                 }
                 InputLabelProps={{ shrink: true }}
-                helperText="Date is stored exactly as selected"
+                required
+                error={!!validationErrors["dateOfBirth"]}
+                helperText={validationErrors["dateOfBirth"] || "Date is stored exactly as selected"}
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 select
                 fullWidth
-                label="Gender"
+                label="Gender*"
                 value={formData.gender}
                 onChange={(e) => handleInputChange("gender", e.target.value)}
+                required
+                error={!!validationErrors["gender"]}
+                helperText={validationErrors["gender"] || ""}
               >
                 <MenuItem value="male">Male</MenuItem>
                 <MenuItem value="female">Female</MenuItem>
@@ -266,11 +333,12 @@ export const PatientDetailsForm = ({
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="National ID"
+                label="National ID (Cédula)*"
                 value={formData.nationalId}
-                onChange={(e) =>
-                  handleInputChange("nationalId", e.target.value)
-                }
+                onChange={(e) => handleInputChange("nationalId", e.target.value)}
+                required
+                error={!!validationErrors["nationalId"]}
+                helperText={validationErrors["nationalId"] || ""}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -321,11 +389,12 @@ export const PatientDetailsForm = ({
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Phone Number"
+                label="Phone Number*"
                 value={formData.phoneNumber}
-                onChange={(e) =>
-                  handleInputChange("phoneNumber", e.target.value)
-                }
+                onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
+                required
+                error={!!validationErrors["phoneNumber"]}
+                helperText={validationErrors["phoneNumber"] || ""}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -347,18 +416,21 @@ export const PatientDetailsForm = ({
             <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
-                label="Name"
-                value={formData.emergencyContact.name}
+                label="Name*"
+                value={formData.emergencyContact?.name || ""}
                 onChange={(e) =>
                   handleNestedChange("emergencyContact", "name", e.target.value)
                 }
+                required
+                error={!!validationErrors["emergencyContact.name"]}
+                helperText={validationErrors["emergencyContact.name"] || ""}
               />
             </Grid>
             <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
                 label="Relationship"
-                value={formData.emergencyContact.relationship}
+                value={formData.emergencyContact?.relationship || ""}
                 onChange={(e) =>
                   handleNestedChange(
                     "emergencyContact",
@@ -371,8 +443,8 @@ export const PatientDetailsForm = ({
             <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
-                label="Phone Number"
-                value={formData.emergencyContact.phoneNumber}
+                label="Phone Number*"
+                value={formData.emergencyContact?.phoneNumber || ""}
                 onChange={(e) =>
                   handleNestedChange(
                     "emergencyContact",
@@ -380,6 +452,9 @@ export const PatientDetailsForm = ({
                     e.target.value
                   )
                 }
+                required
+                error={!!validationErrors["emergencyContact.phoneNumber"]}
+                helperText={validationErrors["emergencyContact.phoneNumber"] || ""}
               />
             </Grid>
 
@@ -433,11 +508,14 @@ export const PatientDetailsForm = ({
                 fullWidth
                 multiline
                 rows={3}
-                label="Reason for Consultation"
+                label="Reason for Consultation*"
                 value={formData.reasonForConsultation}
                 onChange={(e) =>
                   handleInputChange("reasonForConsultation", e.target.value)
                 }
+                required
+                error={!!validationErrors["reasonForConsultation"]}
+                helperText={validationErrors["reasonForConsultation"] || ""}
               />
             </Grid>
 
@@ -625,7 +703,7 @@ export const PatientDetailsForm = ({
         <Button onClick={() => onClose?.()}>Cancel</Button>
         <Button
           variant="contained"
-          onClick={handleSave}
+          onClick={handleSubmit}
           disabled={saving}
           startIcon={saving ? <CircularProgress size={20} /> : null}
         >

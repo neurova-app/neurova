@@ -132,7 +132,7 @@ export default function Navbar() {
                 height: 32,
                 opacity: isLoading ? 0.5 : 1 
               }} 
-              src={therapistProfile?.profile_picture || ""}
+              src={therapistProfile?.profile_picture || user?.avatar || ""}
             >
               {userInitials}
             </Avatar>
