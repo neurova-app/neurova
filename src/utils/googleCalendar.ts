@@ -273,8 +273,8 @@ export function appointmentToCalendarEvent(
   const requestId = `neurova-meeting-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
   return {
-    summary: `Appointment with ${patient.full_name}`,
-    description: appointment.notes || 'Therapy session',
+    summary: `${appointment.type || 'Appointment'} with ${patient.full_name}`,
+    description: `Type: ${appointment.type || 'Therapy Session'}\n\n${appointment.notes || ''}`,
     start: {
       dateTime: startTime.toISOString(),
       timeZone: userTimeZone,

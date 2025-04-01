@@ -116,37 +116,66 @@ export default function DashboardPage() {
       const events = await getCalendarEvents();
 
       if (events) {
-        const appointments: Appointment[] = events.map((event) => ({
-          id: event.id || "",
-          patientId: "",
-          patientName:
-            event.summary?.replace("Appointment with ", "") ||
-            "Unknown Patient",
-          date: new Date(event.start.dateTime).toISOString().split("T")[0],
-          startTime: new Date(event.start.dateTime).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          }),
-          endTime: new Date(event.end.dateTime).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          }),
-          duration: Math.round(
-            (new Date(event.end.dateTime).getTime() -
-              new Date(event.start.dateTime).getTime()) /
-              (1000 * 60)
-          ),
-          status: "scheduled",
-          notes: event.description || "",
-          type: "Therapy Session",
-          meetLink:
-            event.conferenceData?.entryPoints?.find(
-              (ep) => ep.entryPointType === "video"
-            )?.uri || "",
-          startDateTime: new Date(event.start.dateTime).getTime(), // Store timestamp for sorting
-        }));
+        const appointments: Appointment[] = events.map((event) => {
+          // Extract appointment type from the summary
+          let appointmentType = "Therapy Session"; // Default type
+          let patientName = "Unknown Patient";
+          
+          if (event.summary) {
+            // Parse appointment type and patient name from the summary
+            // Format: "Type with Patient Name"
+            const withIndex = event.summary.indexOf(" with ");
+            if (withIndex > 0) {
+              appointmentType = event.summary.substring(0, withIndex);
+              patientName = event.summary.substring(withIndex + 6); // " with " is 6 characters
+            } else {
+              // Fallback to old format if "with" is not found
+              patientName = event.summary.replace("Appointment with ", "");
+            }
+          }
+          
+          // Extract type from description if available
+          if (event.description && event.description.startsWith("Type:")) {
+            const typeEndIndex = event.description.indexOf("\n\n");
+            if (typeEndIndex > 0) {
+              appointmentType = event.description.substring(6, typeEndIndex).trim();
+            }
+          }
+          
+          return {
+            id: event.id || "",
+            patientId: "",
+            patientName,
+            date: new Date(event.start.dateTime).toISOString().split("T")[0],
+            startTime: new Date(event.start.dateTime).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            }),
+            endTime: new Date(event.end.dateTime).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            }),
+            duration: Math.round(
+              (new Date(event.end.dateTime).getTime() -
+                new Date(event.start.dateTime).getTime()) /
+                (1000 * 60)
+            ),
+            status: "scheduled",
+            notes: event.description 
+              ? (event.description.includes("\n\n") 
+                  ? event.description.substring(event.description.indexOf("\n\n") + 2) 
+                  : event.description)
+              : "",
+            type: appointmentType,
+            meetLink:
+              event.conferenceData?.entryPoints?.find(
+                (ep) => ep.entryPointType === "video"
+              )?.uri || "",
+            startDateTime: new Date(event.start.dateTime).getTime(), // Store timestamp for sorting
+          };
+        });
 
         appointments.sort((a, b) => {
           const timeA = a.startDateTime || Number.MAX_SAFE_INTEGER;
