@@ -39,6 +39,8 @@ const defaultAppointment: Partial<Appointment> = {
   date: new Date().toISOString().split('T')[0],
   type: 'Therapy Session',
   status: 'scheduled',
+  startTime: '',
+  endTime: '',
   notes: '',
 };
 
@@ -243,6 +245,18 @@ export default function AppointmentForm({
         </Grid>
         
         <Grid item xs={6}>
+          <TextField
+            label="End Time"
+            type="time"
+            value={formData.endTime || ''}
+            onChange={(e) => handleInputChange('endTime', e.target.value)}
+            fullWidth
+            required
+            InputLabelProps={{ shrink: true }}
+          />
+        </Grid>
+        
+        <Grid item xs={12}>
           <FormControl fullWidth>
             <InputLabel>Type</InputLabel>
             <Select

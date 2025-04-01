@@ -238,14 +238,29 @@ export function appointmentToCalendarEvent(
   // Create a date object in local timezone
   const startTime = new Date(year, month - 1, day);
   
-  // Set the time if provided
+  // Set the start time if provided
   if (appointment.startTime) {
     const [hours, minutes] = appointment.startTime.split(':').map(Number);
     startTime.setHours(hours, minutes, 0, 0);
   }
   
-  // Create end time (1 hour after start time)
-  const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+  // Create end time based on the provided end time or default to 1 hour after start
+  let endTime: Date;
+  
+  if (appointment.endTime) {
+    // If end time is provided, use it
+    endTime = new Date(year, month - 1, day);
+    const [hours, minutes] = appointment.endTime.split(':').map(Number);
+    endTime.setHours(hours, minutes, 0, 0);
+    
+    // If end time is earlier than start time, assume it's for the next day
+    if (endTime < startTime) {
+      endTime.setDate(endTime.getDate() + 1);
+    }
+  } else {
+    // Default to 1 hour after start time
+    endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+  }
   
   // Get the user's timezone
   const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;

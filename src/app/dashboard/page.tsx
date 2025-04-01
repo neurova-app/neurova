@@ -423,7 +423,9 @@ export default function DashboardPage() {
                                   month: "long",
                                   day: "numeric",
                                 });
-                              })()} - {appointment.startTime}
+                              })()}
+                              <br />
+                              {appointment.startTime} - {appointment.endTime || 'N/A'}
                             </Typography>
                             <br />
                             {appointment.type}
