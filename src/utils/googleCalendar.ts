@@ -276,3 +276,44 @@ export function appointmentToCalendarEvent(
     }
   };
 }
+
+/**
+ * Deletes an event from the Neurova calendar
+ * @param eventId The ID of the event to delete
+ * @returns True if the event was deleted successfully, false otherwise
+ */
+export async function deleteCalendarEvent(eventId: string): Promise<boolean> {
+  try {
+    // Get the current user's session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('No active session found');
+    }
+
+    // Get the access token from the session
+    const accessToken = session.provider_token;
+    if (!accessToken) {
+      throw new Error('No access token found');
+    }
+
+    // Get the Neurova calendar ID
+    const calendarId = await getNeurovaCalendarId();
+    if (!calendarId) {
+      throw new Error('No Neurova calendar found');
+    }
+
+    // Delete the event via Google Calendar API
+    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    // 204 No Content is the expected response for a successful deletion
+    return response.status === 204;
+  } catch (error) {
+    console.error('Error deleting calendar event:', error);
+    return false;
+  }
+}

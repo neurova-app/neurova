@@ -11,7 +11,6 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  IconButton,
   Snackbar,
   Alert,
   List,
@@ -27,11 +26,10 @@ import {
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AddIcon from "@mui/icons-material/Add";
-import CloseIcon from "@mui/icons-material/Close";
 import GoogleIcon from "@mui/icons-material/Google";
 import EventIcon from "@mui/icons-material/Event";
 import VideocamIcon from "@mui/icons-material/Videocam";
-import { useRouter } from "next/navigation";
+import CancelIcon from "@mui/icons-material/Cancel";
 import AppointmentForm from "@/components/AppointmentForm";
 import { Appointment } from "@/types";
 import { PatientDetailsForm } from "@/components/PatientDetailsForm";
@@ -41,6 +39,7 @@ import {
   getCalendarEvents,
   createCalendarEvent,
   appointmentToCalendarEvent,
+  deleteCalendarEvent,
 } from "@/utils/googleCalendar";
 
 interface OverviewItem {
@@ -78,50 +77,43 @@ const notifications: Notification[] = [
 ];
 
 export default function DashboardPage() {
-  // Keep router for potential future use
   const { user, hasCalendarConnected, loginWithGoogle } = useAuth();
   const [isNewPatientOpen, setIsNewPatientOpen] = React.useState(false);
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = React.useState(false);
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(true);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-  const [upcomingAppointments, setUpcomingAppointments] = useState<
-    Appointment[]
-  >([]);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
+  const [cancelingAppointment, setCancelingAppointment] = useState<string | null>(null);
+  const [cancelSuccessMessage, setCancelSuccessMessage] = useState<string | null>(null);
+  const [cancelErrorMessage, setCancelErrorMessage] = useState<string | null>(null);
 
-  // Check if user has connected Google Calendar
   useEffect(() => {
-    // Use the hasCalendarConnected state from AuthContext
     setShowCalendarPrompt(!hasCalendarConnected);
 
-    // Log user info for debugging (using the user variable to fix lint error)
     if (user) {
       console.log(`Dashboard loaded for user: ${user.name} (${user.id})`);
     }
   }, [hasCalendarConnected, user]);
 
-  // Fetch calendar events when calendar is connected
   useEffect(() => {
     if (hasCalendarConnected) {
       fetchCalendarEvents();
     }
   }, [hasCalendarConnected]);
 
-  // Update page title based on connection status
   useEffect(() => {
     document.title = hasCalendarConnected
       ? "Neurova - Dashboard (Calendar Connected)"
       : "Neurova - Dashboard";
   }, [hasCalendarConnected]);
 
-  // Fetch calendar events from Google Calendar
   const fetchCalendarEvents = async () => {
     try {
       setCalendarLoading(true);
       const events = await getCalendarEvents();
 
       if (events) {
-        // Convert Google Calendar events to Appointment type
         const appointments: Appointment[] = events.map((event) => ({
           id: event.id || "",
           patientId: "",
@@ -154,7 +146,6 @@ export default function DashboardPage() {
           startDateTime: new Date(event.start.dateTime).getTime(), // Store timestamp for sorting
         }));
 
-        // Sort appointments by proximity to current date/time
         appointments.sort((a, b) => {
           const timeA = a.startDateTime || Number.MAX_SAFE_INTEGER;
           const timeB = b.startDateTime || Number.MAX_SAFE_INTEGER;
@@ -175,19 +166,13 @@ export default function DashboardPage() {
     setIsNewAppointmentOpen(false);
   };
 
-  const handleCloseCalendarPrompt = () => {
-    setShowCalendarPrompt(false);
-  };
-
   const handleConnectCalendar = async () => {
     try {
       console.log("Connecting to Google Calendar...");
       setCalendarLoading(true);
       
-      // Use the Auth context's loginWithGoogle function to trigger OAuth flow
       await loginWithGoogle();
       
-      // After successful login, update user metadata
       const {
         data: { user: authUser },
       } = await supabase.auth.updateUser({
@@ -200,10 +185,8 @@ export default function DashboardPage() {
         setShowCalendarPrompt(false);
         setShowSuccessAlert(true);
         
-        // Fetch calendar events after successful connection
         fetchCalendarEvents();
         
-        // Hide success message after 5 seconds
         setTimeout(() => {
           setShowSuccessAlert(false);
         }, 5000);
@@ -220,10 +203,6 @@ export default function DashboardPage() {
     patient: { full_name: string; email?: string }
   ) => {
     try {
-      // Create appointment in your database
-      // ...
-
-      // If calendar is connected, also create event in Google Calendar
       if (hasCalendarConnected) {
         const calendarEvent = appointmentToCalendarEvent(
           appointmentData,
@@ -232,7 +211,6 @@ export default function DashboardPage() {
         await createCalendarEvent(calendarEvent);
       }
 
-      // Refresh appointments
       if (hasCalendarConnected) {
         fetchCalendarEvents();
       }
@@ -240,6 +218,31 @@ export default function DashboardPage() {
       handleClose();
     } catch (error) {
       console.error("Error creating appointment:", error);
+    }
+  };
+
+  const handleCancelAppointment = async (appointmentId: string) => {
+    try {
+      setCancelingAppointment(appointmentId);
+      
+      const success = await deleteCalendarEvent(appointmentId);
+      
+      if (success) {
+        setUpcomingAppointments(prev => 
+          prev.filter(appointment => appointment.id !== appointmentId)
+        );
+        
+        setCancelSuccessMessage('Appointment cancelled successfully');
+        setTimeout(() => setCancelSuccessMessage(null), 3000);
+      } else {
+        throw new Error('Failed to cancel appointment');
+      }
+    } catch (error) {
+      console.error('Error cancelling appointment:', error);
+      setCancelErrorMessage('Failed to cancel appointment');
+      setTimeout(() => setCancelErrorMessage(null), 3000);
+    } finally {
+      setCancelingAppointment(null);
     }
   };
 
@@ -361,18 +364,35 @@ export default function DashboardPage() {
                     disablePadding
                     secondaryAction={
                       appointment.meetLink && (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="secondary"
-                          startIcon={<VideocamIcon />}
-                          onClick={() =>
-                            window.open(appointment.meetLink, "_blank")
-                          }
-                          sx={{ fontSize: "0.75rem" }}
-                        >
-                          Join
-                        </Button>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            startIcon={
+                              cancelingAppointment === appointment.id ? 
+                              <CircularProgress size={16} color="error" /> : 
+                              <CancelIcon />
+                            }
+                            onClick={() => handleCancelAppointment(appointment.id)}
+                            disabled={cancelingAppointment === appointment.id}
+                            sx={{ fontSize: "0.75rem" }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="secondary"
+                            startIcon={<VideocamIcon />}
+                            onClick={() =>
+                              window.open(appointment.meetLink, "_blank")
+                            }
+                            sx={{ fontSize: "0.75rem" }}
+                          >
+                            Join
+                          </Button>
+                        </Box>
                       )
                     }
                   >
@@ -531,6 +551,30 @@ export default function DashboardPage() {
           sx={{ width: "100%" }}
         >
           Google Calendar connected successfully!
+        </Alert>
+      </Snackbar>
+
+      {/* Success Alert for Cancellation */}
+      <Snackbar
+        open={!!cancelSuccessMessage}
+        autoHideDuration={6000}
+        onClose={() => setCancelSuccessMessage(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setCancelSuccessMessage(null)} severity="success">
+          {cancelSuccessMessage}
+        </Alert>
+      </Snackbar>
+
+      {/* Error Alert for Cancellation */}
+      <Snackbar
+        open={!!cancelErrorMessage}
+        autoHideDuration={6000}
+        onClose={() => setCancelErrorMessage(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setCancelErrorMessage(null)} severity="error">
+          {cancelErrorMessage}
         </Alert>
       </Snackbar>
     </Grid>
