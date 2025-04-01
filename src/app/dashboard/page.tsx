@@ -411,8 +411,19 @@ export default function DashboardPage() {
                               variant="body2"
                               color="text.primary"
                             >
-                              {new Date(appointment.date).toLocaleDateString()}{" "}
-                              - {appointment.startTime}
+                              {(() => {
+                                // Parse the date string directly to avoid timezone issues
+                                if (!appointment.date) return "No date";
+                                
+                                const [year, month, day] = appointment.date.split('-').map(Number);
+                                const appointmentDate = new Date(year, month - 1, day);
+                                
+                                return appointmentDate.toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                });
+                              })()} - {appointment.startTime}
                             </Typography>
                             <br />
                             {appointment.type}
