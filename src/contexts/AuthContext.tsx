@@ -10,10 +10,12 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   login: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  loginWithGoogle: () => Promise<{ error: AuthError | null }>;
   signup: (email: string, password: string, userData: Partial<User>) => Promise<{ error: AuthError | null }>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
   updateUserProfile: (userData: Partial<User>) => Promise<{ error: AuthError | null }>;
+  hasCalendarConnected: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,10 +26,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasCalendarConnected, setHasCalendarConnected] = useState(false);
 
   // Convert Supabase user to our User type
   const formatUser = (supabaseUser: SupabaseUser | null): User | null => {
     if (!supabaseUser) return null;
+    
+    // Check if user has Google provider and calendar permissions
+    const hasGoogleProvider = supabaseUser.app_metadata?.providers?.includes('google');
+    const hasCalendarAccess = supabaseUser.user_metadata?.calendar_connected === true;
+    
+    setHasCalendarConnected(hasGoogleProvider && hasCalendarAccess);
     
     return {
       id: supabaseUser.id,
@@ -113,6 +122,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+          scopes: 'https://www.googleapis.com/auth/calendar',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      });
+      
+      if (error) {
+        console.error('Google login error:', error);
+      }
+      
+      return { error };
+    } catch (error) {
+      console.error('Google login error:', error);
+      return { error: error as AuthError };
+    }
+  };
+
   const signup = async (email: string, password: string, userData: Partial<User>) => {
     try {
       const { error } = await supabase.auth.signUp({
@@ -163,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           name: userData.name ?? '',
           role: userData.role ?? '',
           avatar_url: userData.avatar ?? '',
+          calendar_connected: hasCalendarConnected,
         },
       });
       
@@ -187,10 +222,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated,
     user,
     login,
+    loginWithGoogle,
     signup,
     logout,
     resetPassword,
     updateUserProfile,
+    hasCalendarConnected,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

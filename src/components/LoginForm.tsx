@@ -9,10 +9,13 @@ import {
   Paper,
   Alert,
   CircularProgress,
+  Divider,
 } from '@mui/material';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AuthError } from '@supabase/supabase-js';
+import GoogleIcon from '@mui/icons-material/Google';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LoginFormProps {
   onLogin: (email: string, password: string) => Promise<{ error: AuthError | null }>;
@@ -22,9 +25,11 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const verificationStatus = searchParams.get('verified');
+  const { loginWithGoogle } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +47,25 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
       console.error('Login error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setError(null);
+    
+    try {
+      const { error } = await loginWithGoogle();
+      
+      if (error) {
+        setError('Failed to sign in with Google. Please try again.');
+      }
+      // Redirect will happen automatically after successful sign-in
+    } catch (err) {
+      setError('Failed to sign in with Google. Please try again.');
+      console.error('Google sign-in error:', err);
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -64,6 +88,40 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
           <Typography variant="h6" align="center" gutterBottom>
             Access your account
           </Typography>
+          
+          {/* Google Sign-in Button */}
+          <Button
+            variant="outlined"
+            fullWidth
+            size="large"
+            startIcon={<GoogleIcon />}
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading || loading}
+            sx={{ 
+              py: 1.2,
+              borderColor: '#DADCE0',
+              color: 'text.primary',
+              '&:hover': {
+                borderColor: '#DADCE0',
+                bgcolor: 'rgba(0, 0, 0, 0.05)',
+              }
+            }}
+          >
+            {googleLoading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              'Sign in with Google'
+            )}
+          </Button>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', my: 1 }}>
+            <Divider sx={{ flexGrow: 1 }} />
+            <Typography variant="body2" color="text.secondary" sx={{ mx: 2 }}>
+              or
+            </Typography>
+            <Divider sx={{ flexGrow: 1 }} />
+          </Box>
+          
           <TextField
             label="Email Address"
             type="email"
@@ -87,7 +145,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
             variant="contained"
             fullWidth
             size="large"
-            disabled={loading}
+            disabled={loading || googleLoading}
             sx={{ mt: 2 }}
           >
             {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Grid,
@@ -11,15 +11,33 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  IconButton,
+  Snackbar,
+  Alert,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemAvatar,
+  ListItemText,
+  CircularProgress,
+  CardHeader,
+  CardContent,
+  Paper,
 } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
+import GoogleIcon from "@mui/icons-material/Google";
+import EventIcon from "@mui/icons-material/Event";
+import VideocamIcon from "@mui/icons-material/Videocam";
 import { useRouter } from "next/navigation";
 import AppointmentForm from "@/components/AppointmentForm";
-
 import { Appointment } from "@/types";
 import { PatientDetailsForm } from "@/components/PatientDetailsForm";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/utils/supabase";
+import { getCalendarEvents, createCalendarEvent, appointmentToCalendarEvent } from "@/utils/googleCalendar";
 
 interface OverviewItem {
   label: string;
@@ -40,44 +58,6 @@ const overviewItems: OverviewItem[] = [
   { label: "Unread Messages", value: "5", color: "#FF6B6B" },
 ];
 
-
-
-const upcomingAppointments: Appointment[] = [
-  {
-    id: "1",
-    patientId: "1",
-    patientName: "Sarah Johnson",
-    type: "Cognitive Behavioral Therapy",
-    date: "2024-03-26",
-    startTime: "14:00",
-    endTime: "14:45",
-    duration: 45,
-    status: "scheduled",
-  },
-  {
-    id: "2",
-    patientId: "2",
-    patientName: "Emily Parker",
-    type: "Initial Consultation",
-    date: "2024-03-26",
-    startTime: "15:00",
-    endTime: "15:45",
-    duration: 45,
-    status: "scheduled",
-  },
-  {
-    id: "3",
-    patientId: "3",
-    patientName: "Michael Brown",
-    type: "Follow-up",
-    date: "2024-03-26",
-    startTime: "16:00",
-    endTime: "16:45",
-    duration: 45,
-    status: "scheduled",
-  },
-];
-
 const notifications: Notification[] = [
   {
     id: "1",
@@ -94,70 +74,192 @@ const notifications: Notification[] = [
 ];
 
 export default function DashboardPage() {
-  const router = useRouter();
+  // Keep router for potential future use
+  const { user, hasCalendarConnected } = useAuth();
   const [isNewPatientOpen, setIsNewPatientOpen] = React.useState(false);
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = React.useState(false);
+  const [showCalendarPrompt, setShowCalendarPrompt] = useState(true);
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+
+  // Check if user has connected Google Calendar
+  useEffect(() => {
+    // Use the hasCalendarConnected state from AuthContext
+    setShowCalendarPrompt(!hasCalendarConnected);
+    
+    // Log user info for debugging (using the user variable to fix lint error)
+    if (user) {
+      console.log(`Dashboard loaded for user: ${user.name} (${user.id})`);
+    }
+  }, [hasCalendarConnected, user]);
+
+  // Fetch calendar events when calendar is connected
+  useEffect(() => {
+    if (hasCalendarConnected) {
+      fetchCalendarEvents();
+    }
+  }, [hasCalendarConnected]);
+
+  // Update page title based on connection status
+  useEffect(() => {
+    document.title = hasCalendarConnected 
+      ? "Neurova - Dashboard (Calendar Connected)" 
+      : "Neurova - Dashboard";
+  }, [hasCalendarConnected]);
+
+  // Fetch calendar events from Google Calendar
+  const fetchCalendarEvents = async () => {
+    try {
+      setCalendarLoading(true);
+      const events = await getCalendarEvents();
+      
+      if (events) {
+        // Convert Google Calendar events to Appointment type
+        const appointments: Appointment[] = events.map(event => ({
+          id: event.id || '',
+          patientId: '',
+          patientName: event.summary?.replace('Appointment with ', '') || 'Unknown Patient',
+          date: new Date(event.start.dateTime).toISOString().split('T')[0],
+          startTime: new Date(event.start.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+          endTime: new Date(event.end.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+          duration: Math.round((new Date(event.end.dateTime).getTime() - new Date(event.start.dateTime).getTime()) / (1000 * 60)),
+          status: 'scheduled',
+          notes: event.description || '',
+          type: 'Therapy Session',
+          meetLink: event.conferenceData?.entryPoints?.find(ep => ep.entryPointType === 'video')?.uri || '',
+          startDateTime: new Date(event.start.dateTime).getTime(), // Store timestamp for sorting
+        }));
+        
+        // Sort appointments by proximity to current date/time
+        appointments.sort((a, b) => {
+          const timeA = a.startDateTime || Number.MAX_SAFE_INTEGER;
+          const timeB = b.startDateTime || Number.MAX_SAFE_INTEGER;
+          return timeA - timeB;
+        });
+        
+        setUpcomingAppointments(appointments);
+      }
+    } catch (error) {
+      console.error('Error fetching calendar events:', error);
+    } finally {
+      setCalendarLoading(false);
+    }
+  };
 
   const handleClose = () => {
     setIsNewPatientOpen(false);
     setIsNewAppointmentOpen(false);
   };
-  const handleNewAppointment = (appointment: Appointment) => {
-    console.log("New appointment:", appointment);
-    setIsNewAppointmentOpen(false);
-    // TODO: Implement API call to save appointment
+
+  const handleCloseCalendarPrompt = () => {
+    setShowCalendarPrompt(false);
   };
 
-  const getNextFourHours = () => {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const hours = [];
-
-    for (let i = 0; i < 4; i++) {
-      const hour = (currentHour + i) % 24;
-      const isPM = hour >= 12;
-      const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-      hours.push(`${hour12}:00 ${isPM ? "PM" : "AM"}`);
+  const handleConnectCalendar = async () => {
+    try {
+      console.log('Connecting to Google Calendar...');
+      
+      // Use Supabase to update user metadata
+      const { data: { user: authUser } } = await supabase.auth.updateUser({
+        data: {
+          calendar_connected: true
+        }
+      });
+      
+      if (authUser) {
+        setShowCalendarPrompt(false);
+        setShowSuccessAlert(true);
+      }
+    } catch (error) {
+      console.error('Error connecting to Google Calendar:', error);
     }
+  };
 
-    return hours;
+  const handleCreateAppointment = async (
+    appointmentData: Partial<Appointment>, 
+    patient: { full_name: string; email?: string }
+  ) => {
+    try {
+      // Create appointment in your database
+      // ...
+
+      // If calendar is connected, also create event in Google Calendar
+      if (hasCalendarConnected) {
+        const calendarEvent = appointmentToCalendarEvent(appointmentData, patient);
+        await createCalendarEvent(calendarEvent);
+      }
+
+      // Refresh appointments
+      if (hasCalendarConnected) {
+        fetchCalendarEvents();
+      }
+      
+      handleClose();
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+    }
   };
 
   return (
     <Grid container spacing={3}>
-      {/* Left Column - Overview and Recent Patients */}
-      <Grid item xs={12} md={3}>
-        <Card sx={{ p: 3, mb: 3, position: "relative" }}>
-          {/* Under Construction Overlay */}
-          <Box
+      {/* Google Calendar Connection Prompt */}
+      {showCalendarPrompt && (
+        <Grid item xs={12}>
+          <Paper 
+            elevation={3}
             sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.6)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 10,
-              borderRadius: "inherit",
+              p: 3,
+              mb: 3,
+              position: 'relative',
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              bgcolor: 'primary.light',
+              color: 'primary.contrastText',
             }}
           >
-            <Typography
-              variant="h6"
-              sx={{ color: "white", fontWeight: "bold", mb: 1 }}
+            <IconButton
+              sx={{ position: 'absolute', top: 8, right: 8, color: 'inherit' }}
+              onClick={handleCloseCalendarPrompt}
             >
-              UNDER CONSTRUCTION
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{ color: "white", textAlign: "center", px: 2 }}
+              <CloseIcon />
+            </IconButton>
+            
+            <Box sx={{ mb: { xs: 2, sm: 0 } }}>
+              <Typography variant="h6" gutterBottom>
+                Connect Your Google Calendar
+              </Typography>
+              <Typography variant="body2">
+                Sync your appointments with Google Calendar for better scheduling and reminders.
+              </Typography>
+            </Box>
+            
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<GoogleIcon />}
+              onClick={handleConnectCalendar}
+              sx={{ 
+                px: 3,
+                py: 1,
+                bgcolor: 'white',
+                color: 'primary.main',
+                '&:hover': {
+                  bgcolor: 'grey.100',
+                }
+              }}
             >
-              We&apos;re working on improving this feature for you
-            </Typography>
-          </Box>
+              Connect Calendar
+            </Button>
+          </Paper>
+        </Grid>
+      )}
+
+      {/* Left Column - Overview and Recent Patients */}
+      <Grid item xs={12} md={3}>
+        <Card sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
             Today&apos;s Overview
           </Typography>
@@ -185,216 +287,92 @@ export default function DashboardPage() {
 
       {/* Middle Column - Calendar */}
       <Grid item xs={12} md={6}>
-        <Card sx={{ px: 3, pt: 2, height: "40%", mb: 2, position: "relative" }}>
-          {/* Under Construction Overlay */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.6)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 10,
-              borderRadius: "inherit",
-            }}
-          >
-            <Typography
-              variant="h6"
-              sx={{ color: "white", fontWeight: "bold", mb: 1 }}
-            >
-              UNDER CONSTRUCTION
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{ color: "white", textAlign: "center", px: 2 }}
-            >
-              We&apos;re working on improving this feature for you
-            </Typography>
-          </Box>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              mb: 2,
-            }}
-          >
-            <Typography variant="h6">Calendar</Typography>
-          </Box>
-
-          {/* Calendar Content */}
-          <Box sx={{ position: "relative", height: "240px", mb: 4 }}>
-            {/* Time markers */}
-            {getNextFourHours().map((time, index) => (
-              <Box
-                key={time}
-                sx={{
-                  position: "absolute",
-                  left: 0,
-                  top: `${index * 25}%`,
-                  color: "text.secondary",
-                  fontSize: "0.875rem",
-                }}
+        <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <CardHeader
+            title="Upcoming Appointments"
+            action={
+              <IconButton
+                aria-label="add appointment"
+                onClick={() => setIsNewAppointmentOpen(true)}
               >
-                {time}
+                <AddIcon />
+              </IconButton>
+            }
+          />
+          <CardContent sx={{ flexGrow: 1, overflow: 'auto' }}>
+            {calendarLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
               </Box>
-            ))}
-
-            {/* Example appointment */}
-            <Box
-              sx={{
-                position: "absolute",
-                left: "60px",
-                top: "15%",
-                width: "calc(100% - 70px)",
-                height: "60px",
-                bgcolor: "primary.light",
-                borderRadius: 1,
-                p: 1,
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 1,
-                  width: "100%",
-                  height: "100%",
-                }}
-              >
-                <Typography variant="subtitle2">Sarah Johnson</Typography>
+            ) : upcomingAppointments.length > 0 ? (
+              <List>
+                {upcomingAppointments.map((appointment) => (
+                  <ListItem 
+                    key={appointment.id} 
+                    disablePadding
+                    secondaryAction={
+                      appointment.meetLink && (
+                        <Button 
+                          size="small" 
+                          variant="outlined" 
+                          color="secondary"
+                          startIcon={<VideocamIcon />}
+                          onClick={() => window.open(appointment.meetLink, "_blank")}
+                          sx={{ fontSize: '0.75rem' }}
+                        >
+                          Join
+                        </Button>
+                      )
+                    }
+                  >
+                    <ListItemButton>
+                      <ListItemAvatar>
+                        <Avatar sx={{ bgcolor: 'secondary.main' }}>
+                          <EventIcon />
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={appointment.patientName}
+                        secondary={
+                          <>
+                            <Typography
+                              component="span"
+                              variant="body2"
+                              color="text.primary"
+                            >
+                              {new Date(appointment.date).toLocaleDateString()} - {appointment.startTime}
+                            </Typography>
+                            <br />
+                            {appointment.type}
+                          </>
+                        }
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            ) : (
+              <Box sx={{ textAlign: 'center', p: 3 }}>
+                <Typography color="text.secondary">
+                  No upcoming appointments
+                </Typography>
                 <Button
-                  onClick={() => {
-                    router.push(`/patients/12345?tab=2`);
-                    window.open(
-                      "https://meet.google.com/auz-djks-zuk",
-                      "_blank"
-                    );
-                  }}
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={() => setIsNewAppointmentOpen(true)}
+                  sx={{ mt: 2 }}
                 >
-                  Start Session
+                  Schedule Appointment
                 </Button>
               </Box>
-            </Box>
-          </Box>
-        </Card>
-
-        <Card sx={{ p: 3, position: "relative" }}>
-          {/* Under Construction Overlay */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.6)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 10,
-              borderRadius: "inherit",
-            }}
-          >
-            <Typography
-              variant="h6"
-              sx={{ color: "white", fontWeight: "bold", mb: 1 }}
-            >
-              UNDER CONSTRUCTION
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{ color: "white", textAlign: "center", px: 2 }}
-            >
-              We&apos;re working on improving this feature for you
-            </Typography>
-          </Box>
-          {/* Upcoming Appointments */}
-          <Box>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              Upcoming Appointments
-            </Typography>
-            {upcomingAppointments.map((appointment) => (
-              <Box
-                key={appointment.id}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  mb: 2,
-                  p: 2,
-                  bgcolor: "background.default",
-                  borderRadius: 2,
-                  "&:hover": {
-                    bgcolor: "action.hover",
-                  },
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <Avatar>{appointment.patientName.charAt(0)}</Avatar>
-                  <Box>
-                    <Typography variant="subtitle2">
-                      {appointment.patientName}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {appointment.type}
-                    </Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ textAlign: "right" }}>
-                  <Typography variant="subtitle2" color="primary">
-                    {appointment.startTime}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {appointment.duration} min
-                  </Typography>
-                </Box>
-              </Box>
-            ))}
-          </Box>
+            )}
+          </CardContent>
         </Card>
       </Grid>
 
       {/* Right Column - Notifications and Quick Actions */}
       <Grid item xs={12} md={3}>
-        <Card sx={{ p: 3, mb: 3, position: "relative" }}>
-          {/* Under Construction Overlay */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.6)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 10,
-              borderRadius: "inherit",
-            }}
-          >
-            <Typography
-              variant="h6"
-              sx={{ color: "white", fontWeight: "bold", mb: 1 }}
-            >
-              UNDER CONSTRUCTION
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{ color: "white", textAlign: "center", px: 2 }}
-            >
-              We&apos;re working on improving this feature for you
-            </Typography>
-          </Box>
+        <Card sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
             Notifications
           </Typography>
@@ -435,48 +413,18 @@ export default function DashboardPage() {
           ))}
         </Card>
 
-        <Card sx={{ p: 3, position: "relative" }}>
-          {/* Under Construction Overlay */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.6)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 10,
-              borderRadius: "inherit",
-            }}
-          >
-            <Typography
-              variant="h6"
-              sx={{ color: "white", fontWeight: "bold", mb: 1 }}
-            >
-              UNDER CONSTRUCTION
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{ color: "white", textAlign: "center", px: 2 }}
-            >
-              We&apos;re working on improving this feature for you
-            </Typography>
-          </Box>
+        <Card sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
             Quick Actions
           </Typography>
           <Button
             fullWidth
             variant="contained"
-            startIcon={<AddIcon />}
-            sx={{ mb: 2 }}
+            startIcon={<EventIcon />}
             onClick={() => setIsNewAppointmentOpen(true)}
+            sx={{ mb: 2 }}
           >
-            New Appointment
+            Schedule Appointment
           </Button>
           <Button
             fullWidth
@@ -506,11 +454,27 @@ export default function DashboardPage() {
           <Box sx={{ mt: 2 }}>
             <AppointmentForm
               onClose={() => setIsNewAppointmentOpen(false)}
-              onSave={handleNewAppointment}
+              onSave={handleCreateAppointment}
             />
           </Box>
         </DialogContent>
       </Dialog>
+
+      {/* Success Alert */}
+      <Snackbar 
+        open={showSuccessAlert} 
+        autoHideDuration={6000} 
+        onClose={() => setShowSuccessAlert(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setShowSuccessAlert(false)} 
+          severity="success" 
+          sx={{ width: '100%' }}
+        >
+          Google Calendar connected successfully!
+        </Alert>
+      </Snackbar>
     </Grid>
   );
 }

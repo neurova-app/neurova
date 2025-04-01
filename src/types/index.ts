@@ -8,6 +8,9 @@ export interface Appointment {
   type: string;
   duration: number;
   status: string;
+  notes?: string;
+  meetLink?: string;
+  startDateTime?: number; // Timestamp for sorting
 }
 
 export interface User {
