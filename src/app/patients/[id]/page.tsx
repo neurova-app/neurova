@@ -344,13 +344,20 @@ export default function PatientDetailPage() {
   };
 
   const calculateAge = (dateOfBirth: string) => {
+    if (!dateOfBirth) return 0;
+    
+    // Parse the date string directly to avoid timezone issues
+    const [year, month, day] = dateOfBirth.split('-').map(Number);
+    const birthDate = new Date(year, month - 1, day);
+    
     const today = new Date();
-    const birthDate = new Date(dateOfBirth);
     let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
+    
     return age;
   };
 
@@ -470,14 +477,19 @@ export default function PatientDetailPage() {
                         Date of Birth (Age)
                       </Typography>
                       <Typography variant="body1">
-                        {new Date(patient.dateOfBirth).toLocaleDateString(
-                          "en-US",
-                          {
+                        {(() => {
+                          // Parse the date string directly to avoid timezone issues
+                          if (!patient.dateOfBirth) return "Not provided";
+                          
+                          const [year, month, day] = patient.dateOfBirth.split('-').map(Number);
+                          const birthDate = new Date(year, month - 1, day);
+                          
+                          return birthDate.toLocaleDateString("en-US", {
                             year: "numeric",
                             month: "long",
                             day: "numeric",
-                          }
-                        )}{" "}
+                          });
+                        })()} {" "}
                         ({calculateAge(patient.dateOfBirth)} years)
                       </Typography>
                     </Grid>

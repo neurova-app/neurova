@@ -185,7 +185,22 @@ export default function PatientsPage() {
                     </Avatar>
                   </TableCell>
                   <TableCell>{patient.fullName}</TableCell>
-                  <TableCell>{patient.dateOfBirth}</TableCell>
+                  <TableCell>
+                    {patient.dateOfBirth ? 
+                      (() => {
+                        // Parse the date string directly to avoid timezone issues
+                        const [year, month, day] = patient.dateOfBirth.split('-').map(Number);
+                        const birthDate = new Date(year, month - 1, day);
+                        
+                        return birthDate.toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        });
+                      })() 
+                      : "Not provided"
+                    }
+                  </TableCell>
                   <TableCell>{patient.gender}</TableCell>
                   <TableCell>{patient.nationalId}</TableCell>
                   <TableCell>{patient.phoneNumber}</TableCell>

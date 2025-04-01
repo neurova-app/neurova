@@ -73,7 +73,21 @@ export const PatientDetailsForm = ({
   const { updatePatient, addPatient } = usePatients();
   const { enqueueSnackbar } = useSnackbar();
 
-  const handleInputChange = (field: keyof Patient, value: string) => {
+  const handleInputChange = (
+    field: keyof Patient,
+    value: string | number | boolean
+  ) => {
+    // Special handling for date of birth to ensure timezone consistency
+    if (field === "dateOfBirth") {
+      // Store the date string directly without timezone conversion
+      setFormData((prev) => ({
+        ...prev,
+        [field]: String(value), // Ensure value is a string
+        updatedAt: new Date().toISOString(),
+      }));
+      return;
+    }
+    
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -233,6 +247,7 @@ export const PatientDetailsForm = ({
                   handleInputChange("dateOfBirth", e.target.value)
                 }
                 InputLabelProps={{ shrink: true }}
+                helperText="Date is stored exactly as selected"
               />
             </Grid>
             <Grid item xs={12} md={6}>

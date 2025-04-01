@@ -126,6 +126,15 @@ export default function AppointmentForm({
   }, [fetchPatients]);
 
   const handleInputChange = (field: keyof Appointment, value: string | number) => {
+    // Special handling for date to ensure timezone consistency
+    if (field === 'date') {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: String(value), // Ensure value is a string
+      }));
+      return;
+    }
+    
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -217,6 +226,7 @@ export default function AppointmentForm({
             fullWidth
             required
             InputLabelProps={{ shrink: true }}
+            helperText="Date is stored exactly as selected"
           />
         </Grid>
         

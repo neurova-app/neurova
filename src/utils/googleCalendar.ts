@@ -231,13 +231,24 @@ export function appointmentToCalendarEvent(
   appointment: Partial<Appointment>,
   patient: PatientInfo
 ): CalendarEvent {
-  const startTime = new Date(appointment.date || new Date().toISOString());
+  // Create date object from the appointment date
+  // Use the date string directly without timezone conversion
+  const [year, month, day] = (appointment.date || '').split('-').map(Number);
+  
+  // Create a date object in local timezone
+  const startTime = new Date(year, month - 1, day);
+  
+  // Set the time if provided
   if (appointment.startTime) {
     const [hours, minutes] = appointment.startTime.split(':').map(Number);
     startTime.setHours(hours, minutes, 0, 0);
   }
   
-  const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 1 hour appointment
+  // Create end time (1 hour after start time)
+  const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+  
+  // Get the user's timezone
+  const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   
   // Generate a unique ID for the conference request
   const requestId = `neurova-meeting-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -247,11 +258,11 @@ export function appointmentToCalendarEvent(
     description: appointment.notes || 'Therapy session',
     start: {
       dateTime: startTime.toISOString(),
-      timeZone: 'America/New_York',
+      timeZone: userTimeZone,
     },
     end: {
       dateTime: endTime.toISOString(),
-      timeZone: 'America/New_York',
+      timeZone: userTimeZone,
     },
     attendees: [
       {
