@@ -35,6 +35,7 @@ import { Appointment } from "@/types";
 import { PatientDetailsForm } from "@/components/PatientDetailsForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/utils/supabase";
+import { usePatients } from "@/contexts/PatientContext";
 import {
   getCalendarEvents,
   createCalendarEvent,
@@ -78,15 +79,24 @@ const notifications: Notification[] = [
 
 export default function DashboardPage() {
   const { user, hasCalendarConnected, loginWithGoogle } = useAuth();
+  const { patients } = usePatients();
   const [isNewPatientOpen, setIsNewPatientOpen] = React.useState(false);
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = React.useState(false);
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(true);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<
+    Appointment[]
+  >([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
-  const [cancelingAppointment, setCancelingAppointment] = useState<string | null>(null);
-  const [cancelSuccessMessage, setCancelSuccessMessage] = useState<string | null>(null);
-  const [cancelErrorMessage, setCancelErrorMessage] = useState<string | null>(null);
+  const [cancelingAppointment, setCancelingAppointment] = useState<
+    string | null
+  >(null);
+  const [cancelSuccessMessage, setCancelSuccessMessage] = useState<
+    string | null
+  >(null);
+  const [cancelErrorMessage, setCancelErrorMessage] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     setShowCalendarPrompt(!hasCalendarConnected);
@@ -170,9 +180,9 @@ export default function DashboardPage() {
     try {
       console.log("Connecting to Google Calendar...");
       setCalendarLoading(true);
-      
+
       await loginWithGoogle();
-      
+
       const {
         data: { user: authUser },
       } = await supabase.auth.updateUser({
@@ -184,9 +194,9 @@ export default function DashboardPage() {
       if (authUser) {
         setShowCalendarPrompt(false);
         setShowSuccessAlert(true);
-        
+
         fetchCalendarEvents();
-        
+
         setTimeout(() => {
           setShowSuccessAlert(false);
         }, 5000);
@@ -224,22 +234,22 @@ export default function DashboardPage() {
   const handleCancelAppointment = async (appointmentId: string) => {
     try {
       setCancelingAppointment(appointmentId);
-      
+
       const success = await deleteCalendarEvent(appointmentId);
-      
+
       if (success) {
-        setUpcomingAppointments(prev => 
-          prev.filter(appointment => appointment.id !== appointmentId)
+        setUpcomingAppointments((prev) =>
+          prev.filter((appointment) => appointment.id !== appointmentId)
         );
-        
-        setCancelSuccessMessage('Appointment cancelled successfully');
+
+        setCancelSuccessMessage("Appointment cancelled successfully");
         setTimeout(() => setCancelSuccessMessage(null), 3000);
       } else {
-        throw new Error('Failed to cancel appointment');
+        throw new Error("Failed to cancel appointment");
       }
     } catch (error) {
-      console.error('Error cancelling appointment:', error);
-      setCancelErrorMessage('Failed to cancel appointment');
+      console.error("Error cancelling appointment:", error);
+      setCancelErrorMessage("Failed to cancel appointment");
       setTimeout(() => setCancelErrorMessage(null), 3000);
     } finally {
       setCancelingAppointment(null);
@@ -364,17 +374,21 @@ export default function DashboardPage() {
                     disablePadding
                     secondaryAction={
                       appointment.meetLink && (
-                        <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Box sx={{ display: "flex", gap: 1 }}>
                           <Button
                             size="small"
                             variant="outlined"
                             color="error"
                             startIcon={
-                              cancelingAppointment === appointment.id ? 
-                              <CircularProgress size={16} color="error" /> : 
-                              <CancelIcon />
+                              cancelingAppointment === appointment.id ? (
+                                <CircularProgress size={16} color="error" />
+                              ) : (
+                                <CancelIcon />
+                              )
                             }
-                            onClick={() => handleCancelAppointment(appointment.id)}
+                            onClick={() =>
+                              handleCancelAppointment(appointment.id)
+                            }
                             disabled={cancelingAppointment === appointment.id}
                             sx={{ fontSize: "0.75rem" }}
                           >
@@ -383,7 +397,7 @@ export default function DashboardPage() {
                           <Button
                             size="small"
                             variant="outlined"
-                            color="secondary"
+                            color="primary"
                             startIcon={<VideocamIcon />}
                             onClick={() =>
                               window.open(appointment.meetLink, "_blank")
@@ -398,8 +412,22 @@ export default function DashboardPage() {
                   >
                     <ListItemButton>
                       <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: "secondary.main" }}>
-                          <EventIcon />
+                        <Avatar
+                          src={(() => {
+                            // Find the patient in our patients list to get their profile picture
+                            const patientName = appointment.patientName;
+                            const patient = patients.find(
+                              (p) => p.fullName === patientName
+                            );
+                            return patient?.profilePicture || "";
+                          })()}
+                        >
+                          {/* Always render initials as fallback */}
+                          {appointment.patientName
+                            .split(" ")
+                            .map((name) => name[0])
+                            .join("")
+                            .substring(0, 2)}
                         </Avatar>
                       </ListItemAvatar>
                       <ListItemText
@@ -414,18 +442,53 @@ export default function DashboardPage() {
                               {(() => {
                                 // Parse the date string directly to avoid timezone issues
                                 if (!appointment.date) return "No date";
-                                
-                                const [year, month, day] = appointment.date.split('-').map(Number);
-                                const appointmentDate = new Date(year, month - 1, day);
-                                
-                                return appointmentDate.toLocaleDateString("en-US", {
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                });
+
+                                const [year, month, day] = appointment.date
+                                  .split("-")
+                                  .map(Number);
+                                const appointmentDate = new Date(
+                                  year,
+                                  month - 1,
+                                  day
+                                );
+
+                                return appointmentDate.toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                  }
+                                );
                               })()}
                               <br />
-                              {appointment.startTime} - {appointment.endTime || 'N/A'}
+                              {(() => {
+                                // Convert start time to AM/PM format
+                                if (!appointment.startTime) return "No time";
+
+                                const [hours, minutes] = appointment.startTime
+                                  .split(":")
+                                  .map(Number);
+                                const startPeriod = hours >= 12 ? "PM" : "AM";
+                                const startHours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
+                                const startFormatted = `${startHours}:${minutes
+                                  .toString()
+                                  .padStart(2, "0")} ${startPeriod}`;
+
+                                // Convert end time to AM/PM format if available
+                                if (!appointment.endTime)
+                                  return `${startFormatted}`;
+
+                                const [endHours, endMinutes] =
+                                  appointment.endTime.split(":").map(Number);
+                                const endPeriod = endHours >= 12 ? "PM" : "AM";
+                                const displayEndHours = endHours % 12 || 12; // Convert 0 to 12 for 12 AM
+                                const endFormatted = `${displayEndHours}:${endMinutes
+                                  .toString()
+                                  .padStart(2, "0")} ${endPeriod}`;
+
+                                return `${startFormatted} - ${endFormatted}`;
+                              })()}
                             </Typography>
                             <br />
                             {appointment.type}
@@ -572,7 +635,7 @@ export default function DashboardPage() {
         open={!!cancelSuccessMessage}
         autoHideDuration={6000}
         onClose={() => setCancelSuccessMessage(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert onClose={() => setCancelSuccessMessage(null)} severity="success">
           {cancelSuccessMessage}
@@ -584,7 +647,7 @@ export default function DashboardPage() {
         open={!!cancelErrorMessage}
         autoHideDuration={6000}
         onClose={() => setCancelErrorMessage(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert onClose={() => setCancelErrorMessage(null)} severity="error">
           {cancelErrorMessage}
