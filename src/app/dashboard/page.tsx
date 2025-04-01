@@ -509,6 +509,10 @@ export default function DashboardPage() {
             <AppointmentForm
               onClose={() => setIsNewAppointmentOpen(false)}
               onSave={handleCreateAppointment}
+              onAddPatient={() => {
+                setIsNewAppointmentOpen(false);
+                setIsNewPatientOpen(true);
+              }}
             />
           </Box>
         </DialogContent>

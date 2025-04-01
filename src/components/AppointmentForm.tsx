@@ -12,9 +12,12 @@ import {
   Select,
   MenuItem,
   Autocomplete,
+  Typography,
+  Alert,
 } from '@mui/material';
 import { Appointment } from '@/types';
 import { supabase } from '@/utils/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Patient {
   id: string;
@@ -26,6 +29,7 @@ interface AppointmentFormProps {
   appointment?: Partial<Appointment>;
   onClose: () => void;
   onSave: (appointment: Partial<Appointment>, patient: { full_name: string; email?: string }) => void;
+  onAddPatient?: () => void; 
 }
 
 const defaultAppointment: Partial<Appointment> = {
@@ -42,28 +46,60 @@ export default function AppointmentForm({
   appointment = defaultAppointment,
   onClose,
   onSave,
+  onAddPatient,
 }: AppointmentFormProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState<Partial<Appointment>>(appointment);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(false);
+  const [noPatients, setNoPatients] = useState(false);
 
- 
-
-  // Fetch patients from Supabase
   const fetchPatients = useCallback(async () => {
+    if (!user) return;
+    
     try {
       setLoading(true);
+      
+      const { data: therapistData, error: therapistError } = await supabase
+        .from('therapists')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (therapistError) throw therapistError;
+      
+      if (!therapistData) {
+        console.error('No therapist record found for current user');
+        setNoPatients(true);
+        return;
+      }
+      
+      const { data: patientRelations, error: relationsError } = await supabase
+        .from('therapist_patients')
+        .select('patient_id')
+        .eq('therapist_id', therapistData.id);
+      
+      if (relationsError) throw relationsError;
+      
+      if (!patientRelations || patientRelations.length === 0) {
+        setNoPatients(true);
+        return;
+      }
+      
+      const patientIds = patientRelations.map(relation => relation.patient_id);
+      
       const { data, error } = await supabase
         .from('patients')
-        .select('id, full_name, email');
+        .select('id, full_name, email')
+        .in('id', patientIds);
       
       if (error) throw error;
       
-      if (data) {
+      if (data && data.length > 0) {
         setPatients(data);
+        setNoPatients(false);
         
-        // If editing an existing appointment, set the selected patient
         if (appointment.patientId) {
           const patient = data.find(p => p.id === appointment.patientId);
           if (patient) {
@@ -74,18 +110,21 @@ export default function AppointmentForm({
             }));
           }
         }
+      } else {
+        setNoPatients(true);
       }
     } catch (error) {
       console.error('Error fetching patients:', error);
+      setNoPatients(true);
     } finally {
       setLoading(false);
     }
-  }, [appointment.patientId]);
+  }, [appointment.patientId, user]);
 
-   // Fetch patients when component mounts
-   useEffect(() => {
+  useEffect(() => {
     fetchPatients();
   }, [fetchPatients]);
+
   const handleInputChange = (field: keyof Appointment, value: string | number) => {
     setFormData((prev) => ({
       ...prev,
@@ -107,18 +146,44 @@ export default function AppointmentForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Make sure we have a patient
     if (!selectedPatient) {
       alert('Please select a patient');
       return;
     }
     
-    // Call onSave with both the appointment data and patient info
     onSave(formData, {
       full_name: selectedPatient.full_name,
       email: selectedPatient.email
     });
   };
+
+  const handleAddPatientClick = () => {
+    onClose(); 
+    if (onAddPatient) {
+      onAddPatient(); 
+    }
+  };
+
+  if (noPatients) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Alert severity="info" sx={{ mb: 3 }}>
+          You need to add patients before you can schedule appointments
+        </Alert>
+        <Typography variant="body1" gutterBottom>
+          You don&apos;t have any patients yet. Add a patient first to schedule appointments.
+        </Typography>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          onClick={handleAddPatientClick}
+          sx={{ mt: 2 }}
+        >
+          Add New Patient
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
@@ -137,6 +202,7 @@ export default function AppointmentForm({
                 required
                 fullWidth
                 disabled={loading}
+                helperText="Only showing patients assigned to you"
               />
             )}
           />
