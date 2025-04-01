@@ -39,6 +39,7 @@ import { usePatients } from "@/contexts/PatientContext";
 import {
   getCalendarEvents,
   createCalendarEvent,
+  updateCalendarEvent,
   appointmentToCalendarEvent,
   deleteCalendarEvent,
 } from "@/utils/googleCalendar";
@@ -97,6 +98,7 @@ export default function DashboardPage() {
   const [cancelErrorMessage, setCancelErrorMessage] = useState<string | null>(
     null
   );
+  const [appointmentToEdit, setAppointmentToEdit] = useState<Appointment | null>(null);
 
   useEffect(() => {
     setShowCalendarPrompt(!hasCalendarConnected);
@@ -176,6 +178,11 @@ export default function DashboardPage() {
     setIsNewAppointmentOpen(false);
   };
 
+  const handleCloseAppointmentForm = () => {
+    setIsNewAppointmentOpen(false);
+    setAppointmentToEdit(null);
+  };
+
   const handleConnectCalendar = async () => {
     try {
       console.log("Connecting to Google Calendar...");
@@ -208,27 +215,61 @@ export default function DashboardPage() {
     }
   };
 
-  const handleCreateAppointment = async (
-    appointmentData: Partial<Appointment>,
+  const handleSaveAppointment = async (
+    appointmentData: Appointment,
     patient: { full_name: string; email?: string }
   ) => {
     try {
       if (hasCalendarConnected) {
-        const calendarEvent = appointmentToCalendarEvent(
-          appointmentData,
-          patient
-        );
-        await createCalendarEvent(calendarEvent);
-      }
-
-      if (hasCalendarConnected) {
+        if (appointmentData.id) {
+          // This is a reschedule - update the existing event
+          const calendarEvent = appointmentToCalendarEvent(
+            appointmentData,
+            patient
+          );
+          
+          // Update the event in Google Calendar
+          await updateCalendarEvent(appointmentData.id, calendarEvent);
+          
+          // Update the local state
+          setUpcomingAppointments(prev => 
+            prev.map(apt => apt.id === appointmentData.id ? {
+              ...appointmentData,
+              patientName: patient.full_name,
+              startDateTime: new Date(`${appointmentData.date}T${appointmentData.startTime}`).getTime()
+            } : apt)
+          );
+          
+          // Show success message
+          setCancelSuccessMessage('Appointment rescheduled successfully');
+          setTimeout(() => setCancelSuccessMessage(null), 3000);
+        } else {
+          // This is a new appointment - create a new event
+          const calendarEvent = appointmentToCalendarEvent(
+            appointmentData,
+            patient
+          );
+          
+          // Create the event in Google Calendar
+          await createCalendarEvent(calendarEvent);
+        }
+        
+        // Refresh the calendar events
         fetchCalendarEvents();
       }
-
-      handleClose();
+      
+      // Close the appointment form
+      handleCloseAppointmentForm();
     } catch (error) {
-      console.error("Error creating appointment:", error);
+      console.error("Error saving appointment:", error);
+      setCancelErrorMessage('Failed to save appointment');
+      setTimeout(() => setCancelErrorMessage(null), 3000);
     }
+  };
+
+  const handleRescheduleAppointment = (appointment: Appointment) => {
+    setAppointmentToEdit(appointment);
+    setIsNewAppointmentOpen(true);
   };
 
   const handleCancelAppointment = async (appointmentId: string) => {
@@ -307,36 +348,8 @@ export default function DashboardPage() {
         </Grid>
       )}
 
-      {/* Left Column - Overview and Recent Patients */}
-      <Grid item xs={12} md={3}>
-        <Card sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Today&apos;s Overview
-          </Typography>
-          {overviewItems.map((item) => (
-            <Box
-              key={item.label}
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                mb: 2,
-              }}
-            >
-              <Typography variant="body1">{item.label}</Typography>
-              <Typography
-                variant="h6"
-                sx={{ color: item.color, fontWeight: "medium" }}
-              >
-                {item.value}
-              </Typography>
-            </Box>
-          ))}
-        </Card>
-      </Grid>
-
       {/* Middle Column - Calendar */}
-      <Grid item xs={12} md={6}>
+      <Grid item xs={12} md={9}>
         <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
           <CardHeader title="Upcoming Appointments" />
           <CardContent sx={{ flexGrow: 1, overflow: "auto" }}>
@@ -413,6 +426,16 @@ export default function DashboardPage() {
                               sx={{ fontSize: "0.75rem" }}
                             >
                               Cancel
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="warning"
+                              startIcon={<EventIcon />}
+                              onClick={() => handleRescheduleAppointment(appointment)}
+                              sx={{ fontSize: "0.75rem" }}
+                            >
+                              Reschedule
                             </Button>
                             <Button
                               size="small"
@@ -633,19 +656,30 @@ export default function DashboardPage() {
       {/* New Appointment Dialog */}
       <Dialog
         open={isNewAppointmentOpen}
-        onClose={() => setIsNewAppointmentOpen(false)}
+        onClose={handleCloseAppointmentForm}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Schedule New Appointment</DialogTitle>
+        <DialogTitle>
+          {appointmentToEdit ? "Reschedule Appointment" : "Schedule New Appointment"}
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
             <AppointmentForm
-              onClose={() => setIsNewAppointmentOpen(false)}
-              onSave={handleCreateAppointment}
-              onAddPatient={() => {
-                setIsNewAppointmentOpen(false);
-                setIsNewPatientOpen(true);
+              onClose={handleCloseAppointmentForm}
+              onSave={handleSaveAppointment}
+              onAddPatient={() => setIsNewPatientOpen(true)}
+              appointment={appointmentToEdit || {
+                id: "",
+                patientId: "",
+                patientName: "",
+                date: new Date().toISOString().split("T")[0],
+                startTime: "",
+                endTime: "",
+                type: "Therapy Session",
+                duration: 60,
+                status: "scheduled",
+                notes: "",
               }}
             />
           </Box>

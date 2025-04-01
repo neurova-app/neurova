@@ -26,32 +26,36 @@ interface Patient {
 }
 
 interface AppointmentFormProps {
-  appointment?: Partial<Appointment>;
   onClose: () => void;
-  onSave: (appointment: Partial<Appointment>, patient: { full_name: string; email?: string }) => void;
-  onAddPatient?: () => void; 
+  onSave: (appointment: Appointment, patient: { full_name: string; email?: string }) => void;
+  onAddPatient?: () => void;
+  appointment?: Partial<Appointment>;
 }
 
-const defaultAppointment: Partial<Appointment> = {
-  id: '',
-  patientId: '',
-  patientName: '',
+const defaultAppointment: Appointment = {
+  id: "",
+  patientId: "",
+  patientName: "",
   date: new Date().toISOString().split('T')[0],
   type: 'Therapy Session',
   status: 'scheduled',
   startTime: '',
   endTime: '',
+  duration: 60,
   notes: '',
 };
 
 export default function AppointmentForm({
-  appointment = defaultAppointment,
   onClose,
   onSave,
   onAddPatient,
+  appointment = defaultAppointment,
 }: AppointmentFormProps) {
   const { user } = useAuth();
-  const [formData, setFormData] = useState<Partial<Appointment>>(appointment);
+  const [formData, setFormData] = useState<Appointment>({
+    ...defaultAppointment,
+    ...appointment as Appointment
+  });
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(false);
@@ -137,6 +141,37 @@ export default function AppointmentForm({
       return;
     }
     
+    // Special handling for start time to automatically set end time
+    if (field === 'startTime') {
+      const startTimeStr = String(value);
+      
+      // Calculate end time (1 hour after start time)
+      if (startTimeStr) {
+        const [hours, minutes] = startTimeStr.split(':').map(Number);
+        let endHours = hours + 1;
+        
+        // Handle day overflow (e.g., if start time is 23:00, end time should be 00:00)
+        if (endHours >= 24) {
+          endHours = endHours - 24;
+        }
+        
+        const endTimeStr = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        
+        setFormData((prev) => ({
+          ...prev,
+          startTime: startTimeStr,
+          // Only set end time automatically if it's not already set or if we're creating a new appointment
+          endTime: !prev.endTime || !prev.id ? endTimeStr : prev.endTime
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          startTime: startTimeStr
+        }));
+      }
+      return;
+    }
+    
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -162,7 +197,7 @@ export default function AppointmentForm({
       return;
     }
     
-    onSave(formData, {
+    onSave(formData as Appointment, {
       full_name: selectedPatient.full_name,
       email: selectedPatient.email
     });

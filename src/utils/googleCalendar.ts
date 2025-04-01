@@ -343,3 +343,53 @@ export async function deleteCalendarEvent(eventId: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Updates an existing event in the Google Calendar
+ * @param eventId The ID of the event to update
+ * @param event The updated event data
+ * @returns True if successful, false otherwise
+ */
+export async function updateCalendarEvent(eventId: string, event: CalendarEvent): Promise<boolean> {
+  try {
+    // Get the current user's session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('No active session found');
+    }
+
+    // Get the access token from the session
+    const accessToken = session.provider_token;
+    if (!accessToken) {
+      throw new Error('No access token found');
+    }
+
+    // Get the Neurova calendar ID
+    const calendarId = await getNeurovaCalendarId();
+    if (!calendarId) {
+      throw new Error('No Neurova calendar found');
+    }
+
+    // Update the event via Google Calendar API
+    const response = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(event),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to update event: ${response.statusText}`);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error updating calendar event:', error);
+    return false;
+  }
+}
