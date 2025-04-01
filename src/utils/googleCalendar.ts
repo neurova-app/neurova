@@ -231,11 +231,15 @@ export function appointmentToCalendarEvent(
   appointment: Partial<Appointment>,
   patient: PatientInfo
 ): CalendarEvent {
-  // Create date object from the appointment date
-  // Use the date string directly without timezone conversion
-  const [year, month, day] = (appointment.date || '').split('-').map(Number);
+  // Parse the date string in YYYY-MM-DD format
+  // This ensures we're interpreting the date correctly regardless of locale
+  const dateStr = appointment.date || '';
   
-  // Create a date object in local timezone
+  // Explicitly parse the date in YYYY-MM-DD format to avoid timezone/locale issues
+  // dateStr format is YYYY-MM-DD (e.g., 2025-03-04 for March 4, 2025)
+  const [year, month, day] = dateStr.split('-').map(Number);
+  
+  // Create a date object in local timezone - month is 0-indexed in JavaScript
   const startTime = new Date(year, month - 1, day);
   
   // Set the start time if provided

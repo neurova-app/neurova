@@ -44,12 +44,7 @@ import {
   deleteCalendarEvent,
 } from "@/utils/googleCalendar";
 
-interface OverviewItem {
-  label: string;
-  value: string;
-  color: string;
-}
-
+// Define the notification interface
 interface Notification {
   id: string;
   message: string;
@@ -57,12 +52,7 @@ interface Notification {
   type: "appointment" | "message" | "system";
 }
 
-const overviewItems: OverviewItem[] = [
-  { label: "Appointments", value: "8", color: "#4A90E2" },
-  { label: "Pending Tasks", value: "3", color: "#50C878" },
-  { label: "Unread Messages", value: "5", color: "#FF6B6B" },
-];
-
+// Define some sample notifications
 const notifications: Notification[] = [
   {
     id: "1",
@@ -223,20 +213,29 @@ export default function DashboardPage() {
       if (hasCalendarConnected) {
         if (appointmentData.id) {
           // This is a reschedule - update the existing event
+          // Ensure the date is in the correct format before converting to calendar event
+          const formattedAppointment = {
+            ...appointmentData,
+            // Ensure date is in YYYY-MM-DD format without any time component
+            date: appointmentData.date.includes('T') 
+              ? appointmentData.date.split('T')[0] 
+              : appointmentData.date,
+          };
+          
           const calendarEvent = appointmentToCalendarEvent(
-            appointmentData,
+            formattedAppointment,
             patient
           );
           
           // Update the event in Google Calendar
           await updateCalendarEvent(appointmentData.id, calendarEvent);
           
-          // Update the local state
+          // Update the local state with consistent date format
           setUpcomingAppointments(prev => 
             prev.map(apt => apt.id === appointmentData.id ? {
-              ...appointmentData,
+              ...formattedAppointment,
               patientName: patient.full_name,
-              startDateTime: new Date(`${appointmentData.date}T${appointmentData.startTime}`).getTime()
+              startDateTime: new Date(`${formattedAppointment.date}T${formattedAppointment.startTime}`).getTime()
             } : apt)
           );
           
@@ -245,8 +244,17 @@ export default function DashboardPage() {
           setTimeout(() => setCancelSuccessMessage(null), 3000);
         } else {
           // This is a new appointment - create a new event
+          // Ensure the date is in the correct format before converting to calendar event
+          const formattedAppointment = {
+            ...appointmentData,
+            // Ensure date is in YYYY-MM-DD format without any time component
+            date: appointmentData.date.includes('T') 
+              ? appointmentData.date.split('T')[0] 
+              : appointmentData.date,
+          };
+          
           const calendarEvent = appointmentToCalendarEvent(
-            appointmentData,
+            formattedAppointment,
             patient
           );
           
@@ -268,7 +276,17 @@ export default function DashboardPage() {
   };
 
   const handleRescheduleAppointment = (appointment: Appointment) => {
-    setAppointmentToEdit(appointment);
+    // Ensure the date is in the correct format for the form (YYYY-MM-DD)
+    // This is crucial because the date might have been parsed differently when fetched from Google Calendar
+    const appointmentToEdit = {
+      ...appointment,
+      // Ensure date is in YYYY-MM-DD format
+      date: appointment.date.includes('T') 
+        ? appointment.date.split('T')[0] // Handle ISO format if present
+        : appointment.date,
+    };
+    
+    setAppointmentToEdit(appointmentToEdit);
     setIsNewAppointmentOpen(true);
   };
 
@@ -493,26 +511,27 @@ export default function DashboardPage() {
                                 color="text.primary"
                               >
                                 {(() => {
-                                  // Parse the date string directly to avoid timezone issues
+                                  // Format the date consistently
                                   if (!appointment.date) return "No date";
-
-                                  const [year, month, day] = appointment.date
-                                    .split("-")
-                                    .map(Number);
-                                  const appointmentDate = new Date(
-                                    year,
-                                    month - 1,
-                                    day
-                                  );
-
-                                  return appointmentDate.toLocaleDateString(
-                                    "en-US",
-                                    {
-                                      year: "numeric",
-                                      month: "long",
-                                      day: "numeric",
-                                    }
-                                  );
+                                  
+                                  try {
+                                    // Parse the date in YYYY-MM-DD format
+                                    const [year, month, day] = appointment.date.split('-').map(Number);
+                                    
+                                    // Create a date object with the correct values
+                                    const date = new Date(year, month - 1, day);
+                                    
+                                    // Format the date in a user-friendly way
+                                    return new Intl.DateTimeFormat('en-US', {
+                                      weekday: 'short',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    }).format(date);
+                                  } catch (error) {
+                                    console.error("Error formatting date:", error);
+                                    return appointment.date;
+                                  }
                                 })()}
                               </Typography>
                               <br />

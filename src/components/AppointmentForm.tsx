@@ -57,7 +57,11 @@ export default function AppointmentForm({
     ...appointment as Appointment
   });
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>({
+    id: appointment.patientId,
+    full_name: appointment.patientName,
+    email: appointment.email || '',
+  });
   const [loading, setLoading] = useState(false);
   const [noPatients, setNoPatients] = useState(false);
 
