@@ -34,9 +34,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Check if user has Google provider and calendar permissions
     const hasGoogleProvider = supabaseUser.app_metadata?.providers?.includes('google');
-    const hasCalendarAccess = supabaseUser.user_metadata?.calendar_connected === true;
+    const hasProviderToken = !!supabaseUser.app_metadata?.provider_token;
     
-    setHasCalendarConnected(hasGoogleProvider && hasCalendarAccess);
+    // If user has signed in with Google and has a provider token, they've granted calendar access
+    // We should automatically set the calendar_connected flag
+    if (hasGoogleProvider && hasProviderToken && supabaseUser.user_metadata?.calendar_connected !== true) {
+      // Update user metadata to set calendar_connected flag
+      supabase.auth.updateUser({
+        data: { calendar_connected: true }
+      }).then(({ error }) => {
+        if (error) {
+          console.error('Error updating calendar_connected flag:', error);
+        } else {
+          console.log('Calendar connected flag set successfully');
+          setHasCalendarConnected(true);
+        }
+      });
+    }
+    
+    // Set calendar connected state based on current metadata
+    const hasCalendarAccess = supabaseUser.user_metadata?.calendar_connected === true;
+    setHasCalendarConnected(hasGoogleProvider && (hasCalendarAccess || hasProviderToken));
     
     return {
       id: supabaseUser.id,
