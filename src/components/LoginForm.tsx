@@ -41,6 +41,7 @@ export default function LoginForm() {
 
       if (error) {
         setError("Failed to sign in with Google. Please try again.");
+        console.error("Google sign-in error:", error);
       }
       // Redirect will happen automatically after successful sign-in
     } catch (err) {
@@ -127,7 +128,15 @@ export default function LoginForm() {
           googleLoading ? (
             <CircularProgress size={20} color="inherit" />
           ) : (
-            <GoogleIcon />
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              '& svg': {
+                color: '#fff'
+              }
+            }}>
+              <GoogleIcon />
+            </Box>
           )
         }
         onClick={handleGoogleSignIn}
@@ -138,8 +147,14 @@ export default function LoginForm() {
           color: "white",
           textTransform: "none",
           fontWeight: 500,
+          fontSize: "1rem",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
           "&:hover": {
             bgcolor: "#3367D6",
+            boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+          },
+          "&:active": {
+            bgcolor: "#2A56C6",
           },
         }}
       >

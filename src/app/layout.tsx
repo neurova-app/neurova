@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isAuthPage = ['/login', '/signup', '/forgot-password', '/reset-password'].includes(pathname);
+  const isAuthPage = ['/', '/login', '/signup', '/forgot-password', '/reset-password'].includes(pathname);
 
   return (
     <html lang="en">
