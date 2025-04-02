@@ -165,14 +165,14 @@ export default function LoginForm() {
         <Typography variant="caption" color="text.secondary">
           By continuing, you agree to our{" "}
           <Link
-            href="/terms"
+            href="/terms-of-service"
             style={{ color: "#4285F4", textDecoration: "none" }}
           >
             Terms of Service
           </Link>{" "}
           and{" "}
           <Link
-            href="/privacy"
+            href="/privacy-policy"
             style={{ color: "#4285F4", textDecoration: "none" }}
           >
             Privacy Policy

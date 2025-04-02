@@ -134,11 +134,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (loading) return;
 
     const publicPaths = [
-      "/",
       "/login",
-      "/signup",
       "/forgot-password",
-      "/reset-password",
+      "/",
     ];
     const isPublicPath = publicPaths.includes(pathname);
     const isLandingPage = pathname === '/';

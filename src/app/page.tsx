@@ -3,7 +3,6 @@
 import { Box, Button, Container, Grid, Typography, Paper } from "@mui/material";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
 
 // Feature icons
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
@@ -15,12 +14,6 @@ import SecurityIcon from "@mui/icons-material/Security";
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
-
-  // If already authenticated, redirect to dashboard
-  if (isAuthenticated) {
-    router.push("/dashboard");
-  }
 
   const handleOpenApp = () => {
     router.push('/login');
