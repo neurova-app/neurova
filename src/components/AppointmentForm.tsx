@@ -220,14 +220,18 @@ export default function AppointmentForm({
     setIsSaving(true);
     
     try {
-      onSave(formData as Appointment, {
+      await onSave(formData as Appointment, {
         full_name: selectedPatient.full_name,
         email: selectedPatient.email,
       });
+      
+      // Close the modal after successful save
+      onClose();
+    } catch (error) {
+      console.error("Error saving appointment:", error);
     } finally {
-      // Note: We're not setting isSaving to false here because the component will likely be closed by the parent
-      // after the save is complete. If the component stays open for some reason, you may want to set isSaving to false
-      // in a useEffect that runs when certain props change.
+      // Always reset the saving state whether successful or not
+      setIsSaving(false);
     }
   };
 

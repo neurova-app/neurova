@@ -127,6 +127,9 @@ export const PatientDetailsForm = ({
       return;
     }
     
+    // Set saving state to true to show loading indicator
+    setSaving(true);
+    
     try {
       if (formData.id) {
         // Update existing patient
@@ -139,6 +142,7 @@ export const PatientDetailsForm = ({
         await addPatient(patientWithoutId);
         enqueueSnackbar("Patient created successfully", { variant: "success" });
       }
+      // Close the modal after successful save
       onClose?.();
     } catch (error: unknown) {
       console.error("Error saving patient:", error);
