@@ -135,7 +135,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const publicPaths = [
       "/login",
-      "/forgot-password",
       "/",
     ];
     const isPublicPath = publicPaths.includes(pathname);
