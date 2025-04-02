@@ -54,17 +54,6 @@ interface ExtendedSession extends Session {
 }
 
 /**
- * Checks if a token is expired or about to expire
- * @param expiresAt Timestamp when the token expires
- * @returns True if the token is expired or will expire in the next 5 minutes
- */
-function isTokenExpired(expiresAt: number): boolean {
-  // Consider token expired if it will expire in the next 5 minutes
-  const expirationBuffer = 5 * 60 * 1000; // 5 minutes in milliseconds
-  return Date.now() + expirationBuffer >= expiresAt;
-}
-
-/**
  * Gets a valid access token, refreshing if necessary
  * @returns A valid access token or null if not available
  */
@@ -73,48 +62,79 @@ async function getValidAccessToken(): Promise<string | null> {
     // Get the current session
     const {
       data: { session },
+      error: sessionError
     } = await supabase.auth.getSession();
-    if (!session) {
-      console.error("No active session found");
+    
+    if (sessionError) {
+      console.error("Error getting session:", sessionError);
+      // Force logout on session error
+      await supabase.auth.signOut();
+      window.location.href = '/login?expired=true';
       return null;
     }
-
+    
+    if (!session) {
+      console.error("No active session found");
+      // Redirect to login page
+      window.location.href = '/login?expired=true';
+      return null;
+    }
+    
     // Cast to extended session type
     const extendedSession = session as ExtendedSession;
 
-    // Check if we have a provider token (Google access token)
+    // Check if provider token exists
     if (!extendedSession.provider_token) {
-      console.error("No provider token found");
+      console.error("No provider token found in session");
+      
+      // Force logout when provider token is missing
+      await supabase.auth.signOut();
+      window.location.href = '/login?expired=true';
       return null;
     }
 
-    // Check if the token is expired
-    if (
-      extendedSession.provider_token_expiry_date &&
-      isTokenExpired(
-        new Date(extendedSession.provider_token_expiry_date).getTime()
-      )
-    ) {
-      console.log("Token expired, refreshing...");
-
-      // Refresh the session
-      const {
-        data: { session: refreshedSession },
-        error,
-      } = await supabase.auth.refreshSession();
-
-      if (error || !refreshedSession?.provider_token) {
-        console.error("Failed to refresh token:", error);
-        return null;
+    // Only check expiration if we have an expiry date
+    if (extendedSession.provider_token_expiry_date) {
+      const expiryTime = new Date(extendedSession.provider_token_expiry_date).getTime();
+      const now = Date.now();
+      const timeUntilExpiry = expiryTime - now;
+      
+      // Log expiration details for debugging
+      console.log(`Token expires in ${Math.floor(timeUntilExpiry / 1000 / 60)} minutes`);
+      
+      // Only consider expired if it's actually expired (not just close to expiring)
+      if (now > expiryTime) {
+        console.log("Token is expired, logging out user...");
+        
+        // Try to refresh first
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError || !refreshData.session?.provider_token) {
+          console.error("Failed to refresh expired token:", refreshError);
+          // Force logout when refresh fails
+          await supabase.auth.signOut();
+          window.location.href = '/login?expired=true';
+          return null;
+        }
+        
+        console.log("Successfully refreshed expired token");
+        return refreshData.session.provider_token;
       }
-
-      return refreshedSession.provider_token;
     }
 
     // Return the existing valid token
     return extendedSession.provider_token;
   } catch (error) {
     console.error("Error getting valid access token:", error);
+    
+    // Force logout on any error
+    try {
+      await supabase.auth.signOut();
+      window.location.href = '/login?expired=true';
+    } catch (logoutError) {
+      console.error("Error during forced logout:", logoutError);
+    }
+    
     return null;
   }
 }
