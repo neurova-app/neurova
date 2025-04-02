@@ -84,12 +84,16 @@ export default function DashboardPage() {
   const [cancelErrorMessage, setCancelErrorMessage] = useState<string | null>(
     null
   );
-  const [appointmentToEdit, setAppointmentToEdit] = useState<Appointment | null>(null);
+  const [appointmentToEdit, setAppointmentToEdit] =
+    useState<Appointment | null>(null);
+
+  // Add a ref to track if calendar events have been fetched to prevent duplicate fetches in StrictMode
+  const calendarFetchedRef = React.useRef(false);
 
   useEffect(() => {
     if (user) {
       console.log(`Dashboard loaded for user: ${user.name} (${user.id})`);
-      
+
       // Since we're using Google-only auth, we can assume calendar is always connected
       // Just update user metadata if needed
       const ensureCalendarConnected = async () => {
@@ -104,9 +108,15 @@ export default function DashboardPage() {
           console.error("Error updating user metadata:", error);
         }
       };
-      
+
       ensureCalendarConnected();
-      fetchCalendarEvents();
+
+      // Only fetch calendar events if they haven't been fetched already
+      // This prevents duplicate fetches during the initial mount in StrictMode
+      if (!calendarFetchedRef.current) {
+        calendarFetchedRef.current = true;
+        fetchCalendarEvents();
+      }
     }
   }, [user]);
 
@@ -124,7 +134,7 @@ export default function DashboardPage() {
           // Extract appointment type from the summary
           let appointmentType = "Therapy Session"; // Default type
           let patientName = "Unknown Patient";
-          
+
           if (event.summary) {
             // Parse appointment type and patient name from the summary
             // Format: "Type with Patient Name"
@@ -137,15 +147,17 @@ export default function DashboardPage() {
               patientName = event.summary.replace("Appointment with ", "");
             }
           }
-          
+
           // Extract type from description if available
           if (event.description && event.description.startsWith("Type:")) {
             const typeEndIndex = event.description.indexOf("\n\n");
             if (typeEndIndex > 0) {
-              appointmentType = event.description.substring(6, typeEndIndex).trim();
+              appointmentType = event.description
+                .substring(6, typeEndIndex)
+                .trim();
             }
           }
-          
+
           return {
             id: event.id || "",
             patientId: "",
@@ -167,10 +179,12 @@ export default function DashboardPage() {
                 (1000 * 60)
             ),
             status: "scheduled",
-            notes: event.description 
-              ? (event.description.includes("\n\n") 
-                  ? event.description.substring(event.description.indexOf("\n\n") + 2) 
-                  : event.description)
+            notes: event.description
+              ? event.description.includes("\n\n")
+                ? event.description.substring(
+                    event.description.indexOf("\n\n") + 2
+                  )
+                : event.description
               : "",
             type: appointmentType,
             meetLink:
@@ -217,30 +231,36 @@ export default function DashboardPage() {
         const formattedAppointment = {
           ...appointmentData,
           // Ensure date is in YYYY-MM-DD format without any time component
-          date: appointmentData.date.includes('T') 
-            ? appointmentData.date.split('T')[0] 
+          date: appointmentData.date.includes("T")
+            ? appointmentData.date.split("T")[0]
             : appointmentData.date,
         };
-        
+
         const calendarEvent = appointmentToCalendarEvent(
           formattedAppointment,
           patient
         );
-        
+
         // Update the event in Google Calendar
         await updateCalendarEvent(appointmentData.id, calendarEvent);
-        
+
         // Update the local state with consistent date format
-        setUpcomingAppointments(prev => 
-          prev.map(apt => apt.id === appointmentData.id ? {
-            ...formattedAppointment,
-            patientName: patient.full_name,
-            startDateTime: new Date(`${formattedAppointment.date}T${formattedAppointment.startTime}`).getTime()
-          } : apt)
+        setUpcomingAppointments((prev) =>
+          prev.map((apt) =>
+            apt.id === appointmentData.id
+              ? {
+                  ...formattedAppointment,
+                  patientName: patient.full_name,
+                  startDateTime: new Date(
+                    `${formattedAppointment.date}T${formattedAppointment.startTime}`
+                  ).getTime(),
+                }
+              : apt
+          )
         );
-        
+
         // Show success message
-        setCancelSuccessMessage('Appointment rescheduled successfully');
+        setCancelSuccessMessage("Appointment rescheduled successfully");
         setTimeout(() => setCancelSuccessMessage(null), 3000);
       } else {
         // This is a new appointment - create a new event
@@ -248,25 +268,25 @@ export default function DashboardPage() {
         const formattedAppointment = {
           ...appointmentData,
           // Ensure date is in YYYY-MM-DD format without any time component
-          date: appointmentData.date.includes('T') 
-            ? appointmentData.date.split('T')[0] 
+          date: appointmentData.date.includes("T")
+            ? appointmentData.date.split("T")[0]
             : appointmentData.date,
         };
-        
+
         const calendarEvent = appointmentToCalendarEvent(
           formattedAppointment,
           patient
         );
-        
+
         // Create the event in Google Calendar
         await createCalendarEvent(calendarEvent);
       }
-      
+
       // Refresh the calendar events
       fetchCalendarEvents();
     } catch (error) {
       console.error("Error saving appointment:", error);
-      setCancelErrorMessage('Failed to save appointment');
+      setCancelErrorMessage("Failed to save appointment");
       setTimeout(() => setCancelErrorMessage(null), 3000);
     }
   };
@@ -277,11 +297,11 @@ export default function DashboardPage() {
     const appointmentToEdit = {
       ...appointment,
       // Ensure date is in YYYY-MM-DD format
-      date: appointment.date.includes('T') 
-        ? appointment.date.split('T')[0] // Handle ISO format if present
+      date: appointment.date.includes("T")
+        ? appointment.date.split("T")[0] // Handle ISO format if present
         : appointment.date,
     };
-    
+
     setAppointmentToEdit(appointmentToEdit);
     setIsNewAppointmentOpen(true);
   };
@@ -375,7 +395,9 @@ export default function DashboardPage() {
                               variant="outlined"
                               color="warning"
                               startIcon={<EventIcon />}
-                              onClick={() => handleRescheduleAppointment(appointment)}
+                              onClick={() =>
+                                handleRescheduleAppointment(appointment)
+                              }
                               sx={{ fontSize: "0.75rem" }}
                             >
                               Reschedule
@@ -438,23 +460,28 @@ export default function DashboardPage() {
                                 {(() => {
                                   // Format the date consistently
                                   if (!appointment.date) return "No date";
-                                  
+
                                   try {
                                     // Parse the date in YYYY-MM-DD format
-                                    const [year, month, day] = appointment.date.split('-').map(Number);
-                                    
+                                    const [year, month, day] = appointment.date
+                                      .split("-")
+                                      .map(Number);
+
                                     // Create a date object with the correct values
                                     const date = new Date(year, month - 1, day);
-                                    
+
                                     // Format the date in a user-friendly way
-                                    return new Intl.DateTimeFormat('en-US', {
-                                      weekday: 'short',
-                                      month: 'short',
-                                      day: 'numeric',
-                                      year: 'numeric'
+                                    return new Intl.DateTimeFormat("en-US", {
+                                      weekday: "short",
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
                                     }).format(date);
                                   } catch (error) {
-                                    console.error("Error formatting date:", error);
+                                    console.error(
+                                      "Error formatting date:",
+                                      error
+                                    );
                                     return appointment.date;
                                   }
                                 })()}
@@ -603,7 +630,9 @@ export default function DashboardPage() {
         fullWidth
       >
         <DialogTitle>
-          {appointmentToEdit ? "Reschedule Appointment" : "Schedule New Appointment"}
+          {appointmentToEdit
+            ? "Reschedule Appointment"
+            : "Schedule New Appointment"}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
@@ -611,18 +640,20 @@ export default function DashboardPage() {
               onClose={handleCloseAppointmentForm}
               onSave={handleSaveAppointment}
               onAddPatient={() => setIsNewPatientOpen(true)}
-              appointment={appointmentToEdit || {
-                id: "",
-                patientId: "",
-                patientName: "",
-                date: new Date().toISOString().split("T")[0],
-                startTime: "",
-                endTime: "",
-                type: "Therapy Session",
-                duration: 60,
-                status: "scheduled",
-                notes: "",
-              }}
+              appointment={
+                appointmentToEdit || {
+                  id: "",
+                  patientId: "",
+                  patientName: "",
+                  date: new Date().toISOString().split("T")[0],
+                  startTime: "",
+                  endTime: "",
+                  type: "Therapy Session",
+                  duration: 60,
+                  status: "scheduled",
+                  notes: "",
+                }
+              }
             />
           </Box>
         </DialogContent>

@@ -197,6 +197,7 @@ export async function createNeurovaCalendar(): Promise<string | null> {
  * Gets the Neurova calendar ID from user metadata or creates a new one
  */
 export async function getNeurovaCalendarId(): Promise<string | null> {
+
   try {
     // Get the current user
     const {
@@ -277,6 +278,8 @@ export async function getCalendarEvents(
     Date.now() + 30 * 24 * 60 * 60 * 1000
   ).toISOString()
 ): Promise<CalendarEvent[] | null> {
+
+  console.log("Fetching calendar events...");
   try {
     // Get a valid access token
     const accessToken = await getValidAccessToken();
