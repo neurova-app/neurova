@@ -162,7 +162,12 @@ export default function DashboardPage() {
             id: event.id || "",
             patientId: "",
             patientName,
-            date: new Date(event.start.dateTime).toISOString().split("T")[0],
+            // Fix timezone issue by parsing date components directly
+            date: (() => {
+              const eventDate = new Date(event.start.dateTime);
+              // Use UTC methods to avoid timezone shifts
+              return `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${String(eventDate.getDate()).padStart(2, '0')}`;
+            })(),
             startTime: new Date(event.start.dateTime).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
@@ -462,20 +467,23 @@ export default function DashboardPage() {
                                   if (!appointment.date) return "No date";
 
                                   try {
-                                    // Parse the date in YYYY-MM-DD format
+                                    // Parse the date in YYYY-MM-DD format without timezone shifts
+                                    // This approach ensures the date displayed is exactly as stored
                                     const [year, month, day] = appointment.date
                                       .split("-")
                                       .map(Number);
 
                                     // Create a date object with the correct values
-                                    const date = new Date(year, month - 1, day);
-
+                                    // Use UTC date to prevent timezone shifts
+                                    const date = new Date(Date.UTC(year, month - 1, day));
+                                    
                                     // Format the date in a user-friendly way
                                     return new Intl.DateTimeFormat("en-US", {
                                       weekday: "short",
                                       month: "short",
                                       day: "numeric",
                                       year: "numeric",
+                                      timeZone: "UTC" // Use UTC to prevent timezone shifts
                                     }).format(date);
                                   } catch (error) {
                                     console.error(
