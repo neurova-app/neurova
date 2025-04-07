@@ -77,8 +77,10 @@ const mockTreatmentPlan = {
     {
       id: "goal-2",
       title: "Improve sleep quality",
-      description: "Establish consistent sleep schedule and improve sleep quality",
-      measurementCriteria: "Increase average sleep duration to 7-8 hours with fewer than 2 awakenings",
+      description:
+        "Establish consistent sleep schedule and improve sleep quality",
+      measurementCriteria:
+        "Increase average sleep duration to 7-8 hours with fewer than 2 awakenings",
       targetDate: "2025-05-30",
       status: "in_progress",
       progress: 60,
@@ -110,16 +112,16 @@ const mockPreviousNotes = [
           type: "header",
           data: {
             text: "Initial Assessment Session",
-            level: 2
-          }
+            level: 2,
+          },
         },
         {
           type: "paragraph",
           data: {
-            text: "Patient presents with symptoms of generalized anxiety disorder. GAD-7 score: 15 (severe). Discussed treatment options and developed initial treatment plan."
-          }
-        }
-      ]
+            text: "Patient presents with symptoms of generalized anxiety disorder. GAD-7 score: 15 (severe). Discussed treatment options and developed initial treatment plan.",
+          },
+        },
+      ],
     },
     relatedGoals: ["goal-1"],
     assessments: [
@@ -132,12 +134,18 @@ const mockPreviousNotes = [
           { question: "Not being able to stop or control worrying", score: 2 },
           { question: "Worrying too much about different things", score: 3 },
           { question: "Trouble relaxing", score: 2 },
-          { question: "Being so restless that it's hard to sit still", score: 1 },
+          {
+            question: "Being so restless that it's hard to sit still",
+            score: 1,
+          },
           { question: "Becoming easily annoyed or irritable", score: 2 },
-          { question: "Feeling afraid, as if something awful might happen", score: 2 },
-        ]
-      }
-    ]
+          {
+            question: "Feeling afraid, as if something awful might happen",
+            score: 2,
+          },
+        ],
+      },
+    ],
   },
   {
     id: "note-2",
@@ -150,16 +158,16 @@ const mockPreviousNotes = [
           type: "header",
           data: {
             text: "Follow-up Session",
-            level: 2
-          }
+            level: 2,
+          },
         },
         {
           type: "paragraph",
           data: {
-            text: "Introduced breathing techniques and cognitive restructuring. Patient reports high stress at work. Assigned homework to practice mindfulness daily."
-          }
-        }
-      ]
+            text: "Introduced breathing techniques and cognitive restructuring. Patient reports high stress at work. Assigned homework to practice mindfulness daily.",
+          },
+        },
+      ],
     },
     relatedGoals: ["goal-1", "goal-2"],
     assessments: [
@@ -172,12 +180,18 @@ const mockPreviousNotes = [
           { question: "Not being able to stop or control worrying", score: 2 },
           { question: "Worrying too much about different things", score: 2 },
           { question: "Trouble relaxing", score: 2 },
-          { question: "Being so restless that it's hard to sit still", score: 1 },
+          {
+            question: "Being so restless that it's hard to sit still",
+            score: 1,
+          },
           { question: "Becoming easily annoyed or irritable", score: 2 },
-          { question: "Feeling afraid, as if something awful might happen", score: 2 },
-        ]
-      }
-    ]
+          {
+            question: "Feeling afraid, as if something awful might happen",
+            score: 2,
+          },
+        ],
+      },
+    ],
   },
   {
     id: "note-3",
@@ -190,16 +204,16 @@ const mockPreviousNotes = [
           type: "header",
           data: {
             text: "Progress Session",
-            level: 2
-          }
+            level: 2,
+          },
         },
         {
           type: "paragraph",
           data: {
-            text: "Patient reports using mindfulness techniques with some success. Sleep has improved slightly. Continued work on cognitive distortions."
-          }
-        }
-      ]
+            text: "Patient reports using mindfulness techniques with some success. Sleep has improved slightly. Continued work on cognitive distortions.",
+          },
+        },
+      ],
     },
     relatedGoals: ["goal-1", "goal-2"],
     assessments: [
@@ -212,20 +226,28 @@ const mockPreviousNotes = [
           { question: "Not being able to stop or control worrying", score: 2 },
           { question: "Worrying too much about different things", score: 2 },
           { question: "Trouble relaxing", score: 2 },
-          { question: "Being so restless that it's hard to sit still", score: 1 },
+          {
+            question: "Being so restless that it's hard to sit still",
+            score: 1,
+          },
           { question: "Becoming easily annoyed or irritable", score: 2 },
-          { question: "Feeling afraid, as if something awful might happen", score: 1 },
-        ]
-      }
-    ]
-  }
+          {
+            question: "Feeling afraid, as if something awful might happen",
+            score: 1,
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 export default function SessionWithTreatmentPlan() {
   const [editorContent, setEditorContent] = useState<OutputData | null>(null);
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
-  const [progressNotes, setProgressNotes] = useState<Record<string, string>>({});
-  
+  const [progressNotes, setProgressNotes] = useState<Record<string, string>>(
+    {}
+  );
+
   // Assessment states
   const [openGAD7Dialog, setOpenGAD7Dialog] = useState(false);
   const [openPHQ9Dialog, setOpenPHQ9Dialog] = useState(false);
@@ -243,23 +265,23 @@ export default function SessionWithTreatmentPlan() {
           type: "header",
           data: {
             text: "Session Notes",
-            level: 2
-          }
+            level: 2,
+          },
         },
         {
           type: "paragraph",
           data: {
-            text: ""
-          }
-        }
-      ]
+            text: "",
+          },
+        },
+      ],
     });
   }, []);
 
   const handleGoalSelect = (goalId: string) => {
-    setSelectedGoals(prev => 
-      prev.includes(goalId) 
-        ? prev.filter(id => id !== goalId) 
+    setSelectedGoals((prev) =>
+      prev.includes(goalId)
+        ? prev.filter((id) => id !== goalId)
         : [...prev, goalId]
     );
   };
@@ -269,24 +291,32 @@ export default function SessionWithTreatmentPlan() {
   };
 
   const handleProgressNoteChange = (goalId: string, note: string) => {
-    setProgressNotes(prev => ({
+    setProgressNotes((prev) => ({
       ...prev,
-      [goalId]: note
+      [goalId]: note,
     }));
   };
 
-  const handleGAD7Complete = (score: number, responses: Array<{ question: string; score: number }>) => {
+  const handleGAD7Complete = (
+    score: number,
+    responses: Array<{ question: string; score: number }>
+  ) => {
+    console.log(responses);
     setGad7Score(score);
     setGad7Completed(true);
-    
+
     // Update the progress of the anxiety goal based on the new score
     console.log(`New GAD-7 score: ${score}`);
   };
 
-  const handlePHQ9Complete = (score: number, responses: Array<{ question: string; score: number }>) => {
+  const handlePHQ9Complete = (
+    score: number,
+    responses: Array<{ question: string; score: number }>
+  ) => {
+    console.log(responses);
     setPhq9Score(score);
     setPhq9Completed(true);
-    
+
     console.log(`New PHQ-9 score: ${score}`);
   };
 
@@ -297,46 +327,58 @@ export default function SessionWithTreatmentPlan() {
       relatedGoals: selectedGoals,
       progressNotes,
       assessments: [
-        ...(gad7Completed ? [{
-          type: "GAD-7",
-          score: gad7Score,
-          date: new Date().toISOString().split('T')[0]
-        }] : []),
-        ...(phq9Completed ? [{
-          type: "PHQ-9",
-          score: phq9Score,
-          date: new Date().toISOString().split('T')[0]
-        }] : [])
-      ]
+        ...(gad7Completed
+          ? [
+              {
+                type: "GAD-7",
+                score: gad7Score,
+                date: new Date().toISOString().split("T")[0],
+              },
+            ]
+          : []),
+        ...(phq9Completed
+          ? [
+              {
+                type: "PHQ-9",
+                score: phq9Score,
+                date: new Date().toISOString().split("T")[0],
+              },
+            ]
+          : []),
+      ],
     };
-    
+
     console.log("Saving session data:", sessionData);
     alert("Session saved successfully!");
   };
 
   // Calculate the progress for each goal based on assessment scores
   const calculateGoalProgress = (goalId: string) => {
-    if (goalId === "goal-1") { // Anxiety goal
+    if (goalId === "goal-1") {
+      // Anxiety goal
       // Get all GAD-7 assessments
       const assessments = mockPreviousNotes
-        .flatMap(note => note.assessments)
-        .filter(assessment => assessment.type === "GAD-7");
-      
+        .flatMap((note) => note.assessments)
+        .filter((assessment) => assessment.type === "GAD-7");
+
       if (assessments.length === 0) return 0;
-      
+
       // Get the initial and most recent scores
       const initialScore = assessments[0].score;
       const currentScore = assessments[assessments.length - 1].score;
-      
+
       // Calculate progress as percentage of improvement from initial to target (7)
       const targetScore = 7;
       const totalReduction = initialScore - targetScore;
       const actualReduction = initialScore - currentScore;
-      
+
       // Ensure we don't exceed 100%
-      return Math.min(Math.round((actualReduction / totalReduction) * 100), 100);
+      return Math.min(
+        Math.round((actualReduction / totalReduction) * 100),
+        100
+      );
     }
-    
+
     // For other goals, return the mock progress
     return goalId === "goal-2" ? 60 : 0;
   };
@@ -345,7 +387,13 @@ export default function SessionWithTreatmentPlan() {
     <Box sx={{ width: "100%" }}>
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <Box>
               <Typography variant="h5" gutterBottom>
                 New Session - Emily Parker
@@ -356,39 +404,39 @@ export default function SessionWithTreatmentPlan() {
             </Box>
             <Box sx={{ display: "flex", gap: 1 }}>
               <Tooltip title="Complete GAD-7 Anxiety Assessment">
-                <Button 
-                  variant="outlined" 
-                  color="primary" 
+                <Button
+                  variant="outlined"
+                  color="primary"
                   startIcon={<PsychologyIcon />}
                   onClick={() => setOpenGAD7Dialog(true)}
                   sx={{ borderRadius: 4 }}
                 >
                   GAD-7
                   {gad7Completed && (
-                    <Chip 
-                      size="small" 
-                      label={gad7Score} 
-                      color="primary" 
-                      sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} 
+                    <Chip
+                      size="small"
+                      label={gad7Score}
+                      color="primary"
+                      sx={{ ml: 1, height: 20, fontSize: "0.7rem" }}
                     />
                   )}
                 </Button>
               </Tooltip>
               <Tooltip title="Complete PHQ-9 Depression Assessment">
-                <Button 
-                  variant="outlined" 
-                  color="secondary" 
+                <Button
+                  variant="outlined"
+                  color="secondary"
                   startIcon={<MoodIcon />}
                   onClick={() => setOpenPHQ9Dialog(true)}
                   sx={{ borderRadius: 4 }}
                 >
                   PHQ-9
                   {phq9Completed && (
-                    <Chip 
-                      size="small" 
-                      label={phq9Score} 
-                      color="secondary" 
-                      sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} 
+                    <Chip
+                      size="small"
+                      label={phq9Score}
+                      color="secondary"
+                      sx={{ ml: 1, height: 20, fontSize: "0.7rem" }}
                     />
                   )}
                 </Button>
@@ -423,7 +471,8 @@ export default function SessionWithTreatmentPlan() {
               Treatment Plan Integration
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
-              Select the goals addressed in this session and provide progress notes.
+              Select the goals addressed in this session and provide progress
+              notes.
             </Typography>
 
             <Box sx={{ maxHeight: 500, overflow: "auto", pr: 1 }}>
@@ -433,24 +482,35 @@ export default function SessionWithTreatmentPlan() {
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                       <FormControlLabel
                         control={
-                          <Checkbox 
-                            checked={selectedGoals.includes(goal.id)} 
+                          <Checkbox
+                            checked={selectedGoals.includes(goal.id)}
                             onChange={() => handleGoalSelect(goal.id)}
                             onClick={(e) => e.stopPropagation()}
                           />
                         }
                         label={
                           <Box>
-                            <Typography variant="subtitle2">{goal.title}</Typography>
-                            <Box sx={{ display: "flex", alignItems: "center", mt: 0.5 }}>
+                            <Typography variant="subtitle2">
+                              {goal.title}
+                            </Typography>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                mt: 0.5,
+                              }}
+                            >
                               <Box sx={{ width: 100, mr: 1 }}>
-                                <LinearProgress 
-                                  variant="determinate" 
-                                  value={calculateGoalProgress(goal.id)} 
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={calculateGoalProgress(goal.id)}
                                   sx={{ height: 8, borderRadius: 5 }}
                                 />
                               </Box>
-                              <Typography variant="caption" color="text.secondary">
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
                                 {calculateGoalProgress(goal.id)}%
                               </Typography>
                             </Box>
@@ -463,10 +523,14 @@ export default function SessionWithTreatmentPlan() {
                       <Typography variant="body2" paragraph>
                         {goal.description}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" paragraph>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        paragraph
+                      >
                         <strong>Measurement:</strong> {goal.measurementCriteria}
                       </Typography>
-                      
+
                       {selectedGoals.includes(goal.id) && (
                         <Box sx={{ mt: 2 }}>
                           <Typography variant="subtitle2" gutterBottom>
@@ -478,9 +542,11 @@ export default function SessionWithTreatmentPlan() {
                             rows={3}
                             placeholder="Enter progress notes for this goal..."
                             value={progressNotes[goal.id] || ""}
-                            onChange={(e) => handleProgressNoteChange(goal.id, e.target.value)}
+                            onChange={(e) =>
+                              handleProgressNoteChange(goal.id, e.target.value)
+                            }
                           />
-                          
+
                           <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
                             Interventions Used:
                           </Typography>
@@ -499,10 +565,11 @@ export default function SessionWithTreatmentPlan() {
                   </Accordion>
                 ))}
               </FormGroup>
-              
+
               {selectedGoals.length > 0 && (
                 <Alert severity="info" sx={{ mt: 2 }}>
-                  Selected goals will be linked to this session note, and progress will be updated based on your notes and assessments.
+                  Selected goals will be linked to this session note, and
+                  progress will be updated based on your notes and assessments.
                 </Alert>
               )}
 
@@ -520,10 +587,13 @@ export default function SessionWithTreatmentPlan() {
                             GAD-7 Score: {gad7Score}
                           </Typography>
                           <Typography variant="body2">
-                            {gad7Score && gad7Score < 5 ? "Minimal Anxiety" :
-                             gad7Score && gad7Score < 10 ? "Mild Anxiety" :
-                             gad7Score && gad7Score < 15 ? "Moderate Anxiety" :
-                             "Severe Anxiety"}
+                            {gad7Score && gad7Score < 5
+                              ? "Minimal Anxiety"
+                              : gad7Score && gad7Score < 10
+                              ? "Mild Anxiety"
+                              : gad7Score && gad7Score < 15
+                              ? "Moderate Anxiety"
+                              : "Severe Anxiety"}
                           </Typography>
                         </Paper>
                       </Grid>
@@ -535,11 +605,15 @@ export default function SessionWithTreatmentPlan() {
                             PHQ-9 Score: {phq9Score}
                           </Typography>
                           <Typography variant="body2">
-                            {phq9Score && phq9Score < 5 ? "Minimal Depression" :
-                             phq9Score && phq9Score < 10 ? "Mild Depression" :
-                             phq9Score && phq9Score < 15 ? "Moderate Depression" :
-                             phq9Score && phq9Score < 20 ? "Moderately Severe Depression" :
-                             "Severe Depression"}
+                            {phq9Score && phq9Score < 5
+                              ? "Minimal Depression"
+                              : phq9Score && phq9Score < 10
+                              ? "Mild Depression"
+                              : phq9Score && phq9Score < 15
+                              ? "Moderate Depression"
+                              : phq9Score && phq9Score < 20
+                              ? "Moderately Severe Depression"
+                              : "Severe Depression"}
                           </Typography>
                         </Paper>
                       </Grid>
@@ -553,8 +627,8 @@ export default function SessionWithTreatmentPlan() {
       </Grid>
 
       <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>
-        <Button 
-          variant="contained" 
+        <Button
+          variant="contained"
           size="large"
           startIcon={<CheckCircleIcon />}
           onClick={handleSaveSession}
@@ -564,14 +638,20 @@ export default function SessionWithTreatmentPlan() {
       </Box>
 
       {/* GAD-7 Assessment Dialog */}
-      <Dialog 
-        open={openGAD7Dialog} 
+      <Dialog
+        open={openGAD7Dialog}
         onClose={() => setOpenGAD7Dialog(false)}
         maxWidth="md"
         fullWidth
       >
         <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <Typography variant="h6">GAD-7 Anxiety Assessment</Typography>
             <IconButton onClick={() => setOpenGAD7Dialog(false)}>
               <CloseIcon />
@@ -579,24 +659,30 @@ export default function SessionWithTreatmentPlan() {
           </Box>
         </DialogTitle>
         <DialogContent dividers>
-          <GAD7Assessment 
+          <GAD7Assessment
             onComplete={(score, responses) => {
               handleGAD7Complete(score, responses);
               setOpenGAD7Dialog(false);
-            }} 
+            }}
           />
         </DialogContent>
       </Dialog>
 
       {/* PHQ-9 Assessment Dialog */}
-      <Dialog 
-        open={openPHQ9Dialog} 
+      <Dialog
+        open={openPHQ9Dialog}
         onClose={() => setOpenPHQ9Dialog(false)}
         maxWidth="md"
         fullWidth
       >
         <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <Typography variant="h6">PHQ-9 Depression Assessment</Typography>
             <IconButton onClick={() => setOpenPHQ9Dialog(false)}>
               <CloseIcon />
@@ -604,11 +690,11 @@ export default function SessionWithTreatmentPlan() {
           </Box>
         </DialogTitle>
         <DialogContent dividers>
-          <PHQ9Assessment 
+          <PHQ9Assessment
             onComplete={(score, responses) => {
               handlePHQ9Complete(score, responses);
               setOpenPHQ9Dialog(false);
-            }} 
+            }}
           />
         </DialogContent>
       </Dialog>
