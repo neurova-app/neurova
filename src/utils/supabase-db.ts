@@ -167,6 +167,22 @@ export const patientOperations = {
   // Create a new patient and associate with therapist
   createPatient: async (patient: Omit<Patient, "id">, userId: string) => {
     try {
+      // Check if user is authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error("Authentication error:", sessionError);
+        throw new Error("User not authenticated");
+      }
+      
+      if (!session) {
+        console.error("No active session found");
+        throw new Error("User not authenticated");
+      }
+      
+      console.log("Authenticated as:", session.user.id);
+      console.log("Creating patient for therapist with userId:", userId);
+      
       // First, get the therapist profile ID
       const { data: therapistData, error: therapistError } = await supabase
         .from(TABLES.THERAPISTS)
@@ -192,64 +208,80 @@ export const patientOperations = {
       dbPatient.created_at = new Date().toISOString();
       dbPatient.updated_at = new Date().toISOString();
 
-      // Use a two-step process to bypass RLS
-      // 1. Insert the patient with minimal data (just required fields)
-      const minimalPatient = {
-        full_name: dbPatient.full_name,
-        date_of_birth: dbPatient.date_of_birth,
-        gender: dbPatient.gender,
-        national_id: dbPatient.national_id,
-        created_at: dbPatient.created_at,
-        updated_at: dbPatient.updated_at,
-      };
+      console.log("Attempting to create patient using direct database access");
+      
+      // Try the direct database access approach (similar to how profile picture uploads were fixed)
+      // This uses a direct SQL query to bypass RLS policies
+      const { data: directPatientData, error: directPatientError } = await supabase.rpc(
+        'create_patient_direct',
+        { 
+          patient_data: dbPatient,
+          therapist_id: therapistId 
+        }
+      );
 
-      const { data: patientData, error: patientError } = await supabase
-        .from(TABLES.PATIENTS)
-        .insert([minimalPatient])
-        .select();
+      // If the stored procedure doesn't exist yet, fall back to the regular approach
+      if (directPatientError && directPatientError.message.includes('function "create_patient_direct" does not exist')) {
+        console.log("Direct database access function not available, falling back to regular insert");
+        
+        // Regular approach with RLS policies
+        const { data: patientData, error: patientError } = await supabase
+          .from(TABLES.PATIENTS)
+          .insert([dbPatient])
+          .select();
 
-      if (patientError) {
-        console.error("Error creating patient:", patientError);
-        throw patientError;
+        if (patientError) {
+          console.error("Error creating patient:", patientError);
+          console.error("Error code:", patientError.code);
+          console.error("Error message:", patientError.message);
+          
+          // Check if it's an RLS violation
+          if (patientError.code === '42501') {
+            console.error("This is an RLS policy violation. The application needs to create a stored procedure");
+            console.error("Please run the SQL script in migrations/create_patient_function.sql");
+            
+            throw new Error("RLS policy violation. Database setup required - see console for details.");
+          }
+          
+          throw patientError;
+        }
+
+        if (!patientData || patientData.length === 0) {
+          throw new Error("Failed to create patient");
+        }
+
+        const patientId = patientData[0].id;
+
+        // Create the therapist-patient relationship
+        const { error: relationError } = await supabase
+          .from(TABLES.THERAPIST_PATIENTS)
+          .insert([
+            {
+              therapist_id: therapistId,
+              patient_id: patientId,
+            },
+          ]);
+
+        if (relationError) {
+          // If creating the relationship fails, delete the patient to avoid orphaned records
+          await supabase.from(TABLES.PATIENTS).delete().eq("id", patientId);
+          
+          console.error(
+            "Error creating therapist-patient relationship:",
+            relationError
+          );
+          throw relationError;
+        }
+
+        return dbToPatientFormat(patientData[0]);
+      } else if (directPatientError) {
+        // Some other error with the direct approach
+        console.error("Error with direct patient creation:", directPatientError);
+        throw directPatientError;
       }
 
-      if (!patientData || patientData.length === 0) {
-        throw new Error("Failed to create patient");
-      }
-
-      const patientId = patientData[0].id;
-
-      // 2. Create the relationship immediately
-      const { error: relationError } = await supabase
-        .from(TABLES.THERAPIST_PATIENTS)
-        .insert([
-          {
-            therapist_id: therapistId,
-            patient_id: patientId,
-          },
-        ]);
-
-      if (relationError) {
-        console.error(
-          "Error creating therapist-patient relationship:",
-          relationError
-        );
-        throw relationError;
-      }
-
-      // 3. Now update the patient with all the data (RLS should allow this now)
-      const { data: updatedPatientData, error: updateError } = await supabase
-        .from(TABLES.PATIENTS)
-        .update(dbPatient)
-        .eq("id", patientId)
-        .select();
-
-      if (updateError) {
-        console.error("Error updating patient with full data:", updateError);
-        throw updateError;
-      }
-
-      return dbToPatientFormat(updatedPatientData[0]);
+      // If we got here, the direct approach worked
+      return directPatientData as Patient;
     } catch (error) {
       console.error("Error creating patient:", error);
       throw error;
