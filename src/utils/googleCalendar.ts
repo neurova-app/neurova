@@ -88,7 +88,7 @@ async function getValidAccessToken(): Promise<string | null> {
     
     // Cast to extended session type
     const extendedSession = session as ExtendedSession;
-
+console.log("Extended session:", extendedSession)
     // Check if provider token exists
     if (!extendedSession.provider_token) {
       console.error("No provider token found in session");
