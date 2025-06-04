@@ -16,10 +16,16 @@ export interface CalendarEvent {
     dateTime: string;
     timeZone?: string;
   };
-  attendees?: {
+  attendees?: Array<{
     email: string;
     displayName?: string;
-  }[];
+    responseStatus?: 'needsAction' | 'declined' | 'tentative' | 'accepted';
+  }>;
+  sendUpdates?: 'all' | 'externalOnly' | 'none';
+  sendNotifications?: boolean;
+  guestsCanInviteOthers?: boolean;
+  guestsCanModify?: boolean;
+  guestsCanSeeOtherGuests?: boolean;
   reminders?: {
     useDefault: boolean;
     overrides?: {
@@ -236,30 +242,41 @@ export async function createCalendarEvent(
       throw new Error("No valid access token available");
     }
 
-    // Get the Neurova calendar ID
+    // Get the Neurova calendar ID (therapist's calendar)
     const calendarId = await getNeurovaCalendarId();
     if (!calendarId) {
       throw new Error("No Neurova calendar found");
     }
 
-    // Create the event via Google Calendar API
+    // Ensure sendUpdates is set to send email notifications to attendees
+    const eventWithNotifications = {
+      ...event,
+      sendUpdates: 'all', // Ensure all attendees get email notifications
+      sendNotifications: true, // Explicitly enable email notifications
+    };
+
+    // Create the event on the therapist's calendar via Google Calendar API
     const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?conferenceDataVersion=1`,
+      `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?conferenceDataVersion=1&sendUpdates=all`,
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(event),
+        body: JSON.stringify(eventWithNotifications),
       }
     );
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Google Calendar API Error:', errorData);
       throw new Error(`Failed to create event: ${response.statusText}`);
     }
 
-    return await response.json();
+    const createdEvent = await response.json();
+    console.log('Calendar event created successfully:', createdEvent);
+    return createdEvent;
   } catch (error) {
     console.error("Error creating calendar event:", error);
     return null;
@@ -370,6 +387,7 @@ export function appointmentToCalendarEvent(
     .toString(36)
     .substring(2, 7)}`;
 
+  // Create the event with the patient as an attendee
   return {
     summary: `${appointment.type || "Appointment"} with ${patient.full_name}`,
     description: `Type: ${appointment.type || "Therapy Session"}\n\n${
@@ -387,8 +405,16 @@ export function appointmentToCalendarEvent(
       {
         email: patient.email || "patient@example.com",
         displayName: patient.full_name,
+        // Set the attendee's response status to 'needsAction' to ensure they get an email
+        responseStatus: 'needsAction',
       },
     ],
+    // Ensure the event is created on the therapist's calendar and sends notifications
+    sendUpdates: 'all', // Send notifications to all attendees
+    sendNotifications: true, // Ensure notifications are sent
+    guestsCanInviteOthers: false, // Prevent attendees from inviting others
+    guestsCanModify: false, // Prevent attendees from modifying the event
+    guestsCanSeeOtherGuests: false, // Hide other attendees from patients
     reminders: {
       useDefault: false,
       overrides: [
@@ -471,20 +497,28 @@ export async function updateCalendarEvent(
       throw new Error("No Neurova calendar found");
     }
 
+    // Ensure updates are sent to attendees
+    const eventWithNotifications = {
+      ...event,
+      sendUpdates: 'all', // Ensure all attendees get email notifications
+    };
+
     // Update the event via Google Calendar API
     const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`,
+      `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}?sendUpdates=all`,
       {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(event),
+        body: JSON.stringify(eventWithNotifications),
       }
     );
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Google Calendar API Error:', errorData);
       throw new Error(`Failed to update event: ${response.statusText}`);
     }
 
