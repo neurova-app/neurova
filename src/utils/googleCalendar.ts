@@ -327,7 +327,9 @@ export async function getCalendarEvents(
     }
 
     const data = await response.json();
+    console.log(data.items)
     return data.items;
+
   } catch (error) {
     console.error("Error getting calendar events:", error);
     return null;

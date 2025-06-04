@@ -197,6 +197,7 @@ export default function DashboardPage() {
                 (ep) => ep.entryPointType === "video"
               )?.uri || "",
             startDateTime: new Date(event.start.dateTime).getTime(), // Store timestamp for sorting
+            attendees: event.attendees,
           };
         });
 
@@ -205,7 +206,6 @@ export default function DashboardPage() {
           const timeB = b.startDateTime || Number.MAX_SAFE_INTEGER;
           return timeA - timeB;
         });
-
         setUpcomingAppointments(appointments);
       }
     } catch (error) {
@@ -297,6 +297,7 @@ export default function DashboardPage() {
   };
 
   const handleRescheduleAppointment = (appointment: Appointment) => {
+    console.log(appointment)
     // Ensure the date is in the correct format for the form (YYYY-MM-DD)
     // This is crucial because the date might have been parsed differently when fetched from Google Calendar
     const appointmentToEdit = {
@@ -305,6 +306,7 @@ export default function DashboardPage() {
       date: appointment.date.includes("T")
         ? appointment.date.split("T")[0] // Handle ISO format if present
         : appointment.date,
+      attendees: appointment.attendees,
     };
 
     setAppointmentToEdit(appointmentToEdit);

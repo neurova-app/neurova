@@ -11,6 +11,7 @@ export interface Appointment {
   notes?: string;
   meetLink?: string;
   startDateTime?: number; // Timestamp for sorting
+  attendees?: Array<{ email: string; displayName?: string; responseStatus?: 'needsAction' | 'declined' | 'tentative' | 'accepted' }>;
 }
 
 export interface User {

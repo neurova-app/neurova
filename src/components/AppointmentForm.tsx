@@ -57,7 +57,6 @@ export default function AppointmentForm({
 }: AppointmentFormProps) {
   const { user } = useAuth();
   const [formData, setFormData] = useState<Appointment>({
-    ...defaultAppointment,
     ...(appointment as Appointment),
   });
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -222,7 +221,7 @@ export default function AppointmentForm({
     try {
       await onSave(formData as Appointment, {
         full_name: selectedPatient.full_name,
-        email: selectedPatient.email,
+        email: selectedPatient.email ?? formData.attendees?.[0].email,
       });
       
       // Close the modal after successful save
