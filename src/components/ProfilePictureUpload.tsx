@@ -2,10 +2,14 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   Box,
   Avatar,
-  Button,
   CircularProgress,
   Typography,
+  Menu,
+  MenuItem,
 } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { supabase } from "@/utils/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTherapistProfile } from "@/contexts/TherapistProfileContext";
@@ -27,6 +31,20 @@ export default function ProfilePictureUpload({
   const [error, setError] = useState<string | null>(null);
   const [displayImageUrl, setDisplayImageUrl] = useState(currentImageUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Menu state
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+  
+  // Handle menu open
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  
+  // Handle menu close
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
 
   // Update local state when prop changes
   useEffect(() => {
@@ -154,7 +172,60 @@ export default function ProfilePictureUpload({
   };
 
   const handleButtonClick = () => {
+    handleMenuClose();
     fileInputRef.current?.click();
+  };
+  
+  const handleDeletePhoto = async () => {
+    handleMenuClose();
+    setError(null);
+    
+    if (!user?.id || !currentImageUrl) return;
+    
+    setUploading(true);
+    
+    try {
+      // Extract the file path from the URL
+      const storageUrl = supabase.storage.from("profile-pics").getPublicUrl("").data.publicUrl;
+      let fileName = currentImageUrl;
+      
+      // Remove the storage URL part to get just the file path
+      if (fileName.startsWith(storageUrl)) {
+        fileName = fileName.substring(storageUrl.length);
+      }
+      
+      // If the filename starts with a slash, remove it
+      if (fileName.startsWith("/")) {
+        fileName = fileName.substring(1);
+      }
+      
+      // Only attempt to delete if it looks like a valid filename
+      if (fileName.includes(user.id)) {
+        const { error: deleteError } = await supabase.storage
+          .from("profile-pics")
+          .remove([fileName]);
+          
+        if (deleteError) {
+          throw new Error(deleteError.message);
+        }
+        
+        // Update the profile with empty profile picture
+        await updateProfilePicture("");
+        
+        // Call the callback with empty string
+        onImageUploaded("");
+        
+        // Update local state
+        setDisplayImageUrl("");
+      }
+    } catch (error: unknown) {
+      console.error("Error deleting profile picture:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to delete image"
+      );
+    } finally {
+      setUploading(false);
+    }
   };
 
   const initials = fullName
@@ -163,18 +234,64 @@ export default function ProfilePictureUpload({
     .join("");
 
   return (
-    <Box sx={{ textAlign: "center" }}>
-      <Avatar
-        src={displayImageUrl}
-        sx={{
-          width: 150,
-          height: 150,
-          mx: "auto",
+    <Box sx={{ textAlign: "center", position: "relative" }}>
+      <Box 
+        sx={{ 
+          position: "relative", 
+          width: 150, 
+          height: 150, 
+          mx: "auto", 
           mb: 2,
         }}
       >
-        {initials}
-      </Avatar>
+        {/* Profile Picture */}
+        <Box
+          sx={{ 
+            position: "relative",
+            width: 150,
+            height: 150,
+            borderRadius: "50%",
+            overflow: "hidden",
+          }}
+        >
+          <Avatar
+            src={displayImageUrl}
+            sx={{
+              width: 150,
+              height: 150,
+            }}
+          >
+            {initials}
+          </Avatar>
+        </Box>
+        
+        {/* Edit Icon Button */}
+        {!uploading && (
+          <Box
+            onClick={handleMenuClick}
+            sx={{
+              position: "absolute",
+              bottom: 5,
+              right: 5,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              borderRadius: "50%",
+              width: 28,
+              height: 28,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              zIndex: 2,
+              transition: "background-color 0.2s ease",
+              "&:hover": {
+                backgroundColor: "rgba(0, 0, 0, 0.7)",
+              },
+            }}
+          >
+            <EditIcon sx={{ fontSize: 16, color: "white" }} />
+          </Box>
+        )}
+      </Box>
 
       <input
         type="file"
@@ -183,17 +300,35 @@ export default function ProfilePictureUpload({
         ref={fileInputRef}
         onChange={handleFileSelect}
       />
-
-      {!uploading ? (
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={handleButtonClick}
-          sx={{ mt: 1 }}
-        >
+      
+      {/* Dropdown Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "right",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "right",
+        }}
+      >
+        <MenuItem onClick={handleButtonClick}>
+          <PhotoCameraIcon fontSize="small" sx={{ mr: 1 }} />
           Change Photo
-        </Button>
-      ) : (
+        </MenuItem>
+        <MenuItem 
+          onClick={handleDeletePhoto}
+          disabled={!displayImageUrl} // Disable if no image to delete
+        >
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          Delete Photo
+        </MenuItem>
+      </Menu>
+
+      {uploading && (
         <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
           <CircularProgress size={24} />
         </Box>

@@ -16,10 +16,16 @@ export interface CalendarEvent {
     dateTime: string;
     timeZone?: string;
   };
-  attendees?: {
+  attendees?: Array<{
     email: string;
     displayName?: string;
-  }[];
+    responseStatus?: 'needsAction' | 'declined' | 'tentative' | 'accepted';
+  }>;
+  sendUpdates?: 'all' | 'externalOnly' | 'none';
+  sendNotifications?: boolean;
+  guestsCanInviteOthers?: boolean;
+  guestsCanModify?: boolean;
+  guestsCanSeeOtherGuests?: boolean;
   reminders?: {
     useDefault: boolean;
     overrides?: {
@@ -54,17 +60,6 @@ interface ExtendedSession extends Session {
 }
 
 /**
- * Checks if a token is expired or about to expire
- * @param expiresAt Timestamp when the token expires
- * @returns True if the token is expired or will expire in the next 5 minutes
- */
-function isTokenExpired(expiresAt: number): boolean {
-  // Consider token expired if it will expire in the next 5 minutes
-  const expirationBuffer = 5 * 60 * 1000; // 5 minutes in milliseconds
-  return Date.now() + expirationBuffer >= expiresAt;
-}
-
-/**
  * Gets a valid access token, refreshing if necessary
  * @returns A valid access token or null if not available
  */
@@ -73,48 +68,79 @@ async function getValidAccessToken(): Promise<string | null> {
     // Get the current session
     const {
       data: { session },
+      error: sessionError
     } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error("Error getting session:", sessionError);
+      // Force logout on session error
+      await supabase.auth.signOut();
+      window.location.href = '/login?expired=true';
+      return null;
+    }
+    
     if (!session) {
       console.error("No active session found");
+      // Redirect to login page
+      window.location.href = '/login?expired=true';
       return null;
     }
-
+    
     // Cast to extended session type
     const extendedSession = session as ExtendedSession;
-
-    // Check if we have a provider token (Google access token)
+console.log("Extended session:", extendedSession)
+    // Check if provider token exists
     if (!extendedSession.provider_token) {
-      console.error("No provider token found");
+      console.error("No provider token found in session");
+      
+      // Force logout when provider token is missing
+      await supabase.auth.signOut();
+      window.location.href = '/login?expired=true';
       return null;
     }
 
-    // Check if the token is expired
-    if (
-      extendedSession.provider_token_expiry_date &&
-      isTokenExpired(
-        new Date(extendedSession.provider_token_expiry_date).getTime()
-      )
-    ) {
-      console.log("Token expired, refreshing...");
-
-      // Refresh the session
-      const {
-        data: { session: refreshedSession },
-        error,
-      } = await supabase.auth.refreshSession();
-
-      if (error || !refreshedSession?.provider_token) {
-        console.error("Failed to refresh token:", error);
-        return null;
+    // Only check expiration if we have an expiry date
+    if (extendedSession.provider_token_expiry_date) {
+      const expiryTime = new Date(extendedSession.provider_token_expiry_date).getTime();
+      const now = Date.now();
+      const timeUntilExpiry = expiryTime - now;
+      
+      // Log expiration details for debugging
+      console.log(`Token expires in ${Math.floor(timeUntilExpiry / 1000 / 60)} minutes`);
+      
+      // Only consider expired if it's actually expired (not just close to expiring)
+      if (now > expiryTime) {
+        console.log("Token is expired, logging out user...");
+        
+        // Try to refresh first
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError || !refreshData.session?.provider_token) {
+          console.error("Failed to refresh expired token:", refreshError);
+          // Force logout when refresh fails
+          await supabase.auth.signOut();
+          window.location.href = '/login?expired=true';
+          return null;
+        }
+        
+        console.log("Successfully refreshed expired token");
+        return refreshData.session.provider_token;
       }
-
-      return refreshedSession.provider_token;
     }
 
     // Return the existing valid token
     return extendedSession.provider_token;
   } catch (error) {
     console.error("Error getting valid access token:", error);
+    
+    // Force logout on any error
+    try {
+      await supabase.auth.signOut();
+      window.location.href = '/login?expired=true';
+    } catch (logoutError) {
+      console.error("Error during forced logout:", logoutError);
+    }
+    
     return null;
   }
 }
@@ -177,6 +203,7 @@ export async function createNeurovaCalendar(): Promise<string | null> {
  * Gets the Neurova calendar ID from user metadata or creates a new one
  */
 export async function getNeurovaCalendarId(): Promise<string | null> {
+
   try {
     // Get the current user
     const {
@@ -215,30 +242,41 @@ export async function createCalendarEvent(
       throw new Error("No valid access token available");
     }
 
-    // Get the Neurova calendar ID
+    // Get the Neurova calendar ID (therapist's calendar)
     const calendarId = await getNeurovaCalendarId();
     if (!calendarId) {
       throw new Error("No Neurova calendar found");
     }
 
-    // Create the event via Google Calendar API
+    // Ensure sendUpdates is set to send email notifications to attendees
+    const eventWithNotifications = {
+      ...event,
+      sendUpdates: 'all', // Ensure all attendees get email notifications
+      sendNotifications: true, // Explicitly enable email notifications
+    };
+
+    // Create the event on the therapist's calendar via Google Calendar API
     const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?conferenceDataVersion=1`,
+      `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?conferenceDataVersion=1&sendUpdates=all`,
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(event),
+        body: JSON.stringify(eventWithNotifications),
       }
     );
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Google Calendar API Error:', errorData);
       throw new Error(`Failed to create event: ${response.statusText}`);
     }
 
-    return await response.json();
+    const createdEvent = await response.json();
+    console.log('Calendar event created successfully:', createdEvent);
+    return createdEvent;
   } catch (error) {
     console.error("Error creating calendar event:", error);
     return null;
@@ -257,6 +295,8 @@ export async function getCalendarEvents(
     Date.now() + 30 * 24 * 60 * 60 * 1000
   ).toISOString()
 ): Promise<CalendarEvent[] | null> {
+
+  console.log("Fetching calendar events...");
   try {
     // Get a valid access token
     const accessToken = await getValidAccessToken();
@@ -287,7 +327,9 @@ export async function getCalendarEvents(
     }
 
     const data = await response.json();
+    console.log(data.items)
     return data.items;
+
   } catch (error) {
     console.error("Error getting calendar events:", error);
     return null;
@@ -347,6 +389,7 @@ export function appointmentToCalendarEvent(
     .toString(36)
     .substring(2, 7)}`;
 
+  // Create the event with the patient as an attendee
   return {
     summary: `${appointment.type || "Appointment"} with ${patient.full_name}`,
     description: `Type: ${appointment.type || "Therapy Session"}\n\n${
@@ -364,8 +407,16 @@ export function appointmentToCalendarEvent(
       {
         email: patient.email || "patient@example.com",
         displayName: patient.full_name,
+        // Set the attendee's response status to 'needsAction' to ensure they get an email
+        responseStatus: 'needsAction',
       },
     ],
+    // Ensure the event is created on the therapist's calendar and sends notifications
+    sendUpdates: 'all', // Send notifications to all attendees
+    sendNotifications: true, // Ensure notifications are sent
+    guestsCanInviteOthers: false, // Prevent attendees from inviting others
+    guestsCanModify: false, // Prevent attendees from modifying the event
+    guestsCanSeeOtherGuests: false, // Hide other attendees from patients
     reminders: {
       useDefault: false,
       overrides: [
@@ -448,20 +499,28 @@ export async function updateCalendarEvent(
       throw new Error("No Neurova calendar found");
     }
 
+    // Ensure updates are sent to attendees
+    const eventWithNotifications = {
+      ...event,
+      sendUpdates: 'all', // Ensure all attendees get email notifications
+    };
+
     // Update the event via Google Calendar API
     const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`,
+      `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}?sendUpdates=all`,
       {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(event),
+        body: JSON.stringify(eventWithNotifications),
       }
     );
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Google Calendar API Error:', errorData);
       throw new Error(`Failed to update event: ${response.statusText}`);
     }
 

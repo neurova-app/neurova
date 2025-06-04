@@ -21,12 +21,10 @@ import {
   CircularProgress,
   CardHeader,
   CardContent,
-  Paper,
 } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AddIcon from "@mui/icons-material/Add";
-import GoogleIcon from "@mui/icons-material/Google";
 import EventIcon from "@mui/icons-material/Event";
 import VideocamIcon from "@mui/icons-material/Videocam";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -69,12 +67,10 @@ const notifications: Notification[] = [
 ];
 
 export default function DashboardPage() {
-  const { user, hasCalendarConnected, loginWithGoogle } = useAuth();
+  const { user } = useAuth();
   const { patients } = usePatients();
   const [isNewPatientOpen, setIsNewPatientOpen] = React.useState(false);
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = React.useState(false);
-  const [showCalendarPrompt, setShowCalendarPrompt] = useState(true);
-  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [upcomingAppointments, setUpcomingAppointments] = useState<
     Appointment[]
   >([]);
@@ -88,27 +84,45 @@ export default function DashboardPage() {
   const [cancelErrorMessage, setCancelErrorMessage] = useState<string | null>(
     null
   );
-  const [appointmentToEdit, setAppointmentToEdit] = useState<Appointment | null>(null);
+  const [appointmentToEdit, setAppointmentToEdit] =
+    useState<Appointment | null>(null);
+
+  // Add a ref to track if calendar events have been fetched to prevent duplicate fetches in StrictMode
+  const calendarFetchedRef = React.useRef(false);
 
   useEffect(() => {
-    setShowCalendarPrompt(!hasCalendarConnected);
-
     if (user) {
       console.log(`Dashboard loaded for user: ${user.name} (${user.id})`);
+
+      // Since we're using Google-only auth, we can assume calendar is always connected
+      // Just update user metadata if needed
+      const ensureCalendarConnected = async () => {
+        try {
+          // Update user metadata to set calendar_connected flag if not already set
+          await supabase.auth.updateUser({
+            data: {
+              calendar_connected: true,
+            },
+          });
+        } catch (error) {
+          console.error("Error updating user metadata:", error);
+        }
+      };
+
+      ensureCalendarConnected();
+
+      // Only fetch calendar events if they haven't been fetched already
+      // This prevents duplicate fetches during the initial mount in StrictMode
+      if (!calendarFetchedRef.current) {
+        calendarFetchedRef.current = true;
+        fetchCalendarEvents();
+      }
     }
-  }, [hasCalendarConnected, user]);
+  }, [user]);
 
   useEffect(() => {
-    if (hasCalendarConnected) {
-      fetchCalendarEvents();
-    }
-  }, [hasCalendarConnected]);
-
-  useEffect(() => {
-    document.title = hasCalendarConnected
-      ? "Neurova - Dashboard (Calendar Connected)"
-      : "Neurova - Dashboard";
-  }, [hasCalendarConnected]);
+    document.title = "Neurova - Dashboard";
+  }, []);
 
   const fetchCalendarEvents = async () => {
     try {
@@ -120,7 +134,7 @@ export default function DashboardPage() {
           // Extract appointment type from the summary
           let appointmentType = "Therapy Session"; // Default type
           let patientName = "Unknown Patient";
-          
+
           if (event.summary) {
             // Parse appointment type and patient name from the summary
             // Format: "Type with Patient Name"
@@ -133,20 +147,27 @@ export default function DashboardPage() {
               patientName = event.summary.replace("Appointment with ", "");
             }
           }
-          
+
           // Extract type from description if available
           if (event.description && event.description.startsWith("Type:")) {
             const typeEndIndex = event.description.indexOf("\n\n");
             if (typeEndIndex > 0) {
-              appointmentType = event.description.substring(6, typeEndIndex).trim();
+              appointmentType = event.description
+                .substring(6, typeEndIndex)
+                .trim();
             }
           }
-          
+
           return {
             id: event.id || "",
             patientId: "",
             patientName,
-            date: new Date(event.start.dateTime).toISOString().split("T")[0],
+            // Fix timezone issue by parsing date components directly
+            date: (() => {
+              const eventDate = new Date(event.start.dateTime);
+              // Use UTC methods to avoid timezone shifts
+              return `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${String(eventDate.getDate()).padStart(2, '0')}`;
+            })(),
             startTime: new Date(event.start.dateTime).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
@@ -163,10 +184,12 @@ export default function DashboardPage() {
                 (1000 * 60)
             ),
             status: "scheduled",
-            notes: event.description 
-              ? (event.description.includes("\n\n") 
-                  ? event.description.substring(event.description.indexOf("\n\n") + 2) 
-                  : event.description)
+            notes: event.description
+              ? event.description.includes("\n\n")
+                ? event.description.substring(
+                    event.description.indexOf("\n\n") + 2
+                  )
+                : event.description
               : "",
             type: appointmentType,
             meetLink:
@@ -174,6 +197,7 @@ export default function DashboardPage() {
                 (ep) => ep.entryPointType === "video"
               )?.uri || "",
             startDateTime: new Date(event.start.dateTime).getTime(), // Store timestamp for sorting
+            attendees: event.attendees,
           };
         });
 
@@ -182,7 +206,6 @@ export default function DashboardPage() {
           const timeB = b.startDateTime || Number.MAX_SAFE_INTEGER;
           return timeA - timeB;
         });
-
         setUpcomingAppointments(appointments);
       }
     } catch (error) {
@@ -202,119 +225,90 @@ export default function DashboardPage() {
     setAppointmentToEdit(null);
   };
 
-  const handleConnectCalendar = async () => {
-    try {
-      console.log("Connecting to Google Calendar...");
-      setCalendarLoading(true);
-
-      await loginWithGoogle();
-
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.updateUser({
-        data: {
-          calendar_connected: true,
-        },
-      });
-
-      if (authUser) {
-        setShowCalendarPrompt(false);
-        setShowSuccessAlert(true);
-
-        fetchCalendarEvents();
-
-        setTimeout(() => {
-          setShowSuccessAlert(false);
-        }, 5000);
-      }
-    } catch (error) {
-      console.error("Error connecting to Google Calendar:", error);
-    } finally {
-      setCalendarLoading(false);
-    }
-  };
-
   const handleSaveAppointment = async (
     appointmentData: Appointment,
     patient: { full_name: string; email?: string }
   ) => {
     try {
-      if (hasCalendarConnected) {
-        if (appointmentData.id) {
-          // This is a reschedule - update the existing event
-          // Ensure the date is in the correct format before converting to calendar event
-          const formattedAppointment = {
-            ...appointmentData,
-            // Ensure date is in YYYY-MM-DD format without any time component
-            date: appointmentData.date.includes('T') 
-              ? appointmentData.date.split('T')[0] 
-              : appointmentData.date,
-          };
-          
-          const calendarEvent = appointmentToCalendarEvent(
-            formattedAppointment,
-            patient
-          );
-          
-          // Update the event in Google Calendar
-          await updateCalendarEvent(appointmentData.id, calendarEvent);
-          
-          // Update the local state with consistent date format
-          setUpcomingAppointments(prev => 
-            prev.map(apt => apt.id === appointmentData.id ? {
-              ...formattedAppointment,
-              patientName: patient.full_name,
-              startDateTime: new Date(`${formattedAppointment.date}T${formattedAppointment.startTime}`).getTime()
-            } : apt)
-          );
-          
-          // Show success message
-          setCancelSuccessMessage('Appointment rescheduled successfully');
-          setTimeout(() => setCancelSuccessMessage(null), 3000);
-        } else {
-          // This is a new appointment - create a new event
-          // Ensure the date is in the correct format before converting to calendar event
-          const formattedAppointment = {
-            ...appointmentData,
-            // Ensure date is in YYYY-MM-DD format without any time component
-            date: appointmentData.date.includes('T') 
-              ? appointmentData.date.split('T')[0] 
-              : appointmentData.date,
-          };
-          
-          const calendarEvent = appointmentToCalendarEvent(
-            formattedAppointment,
-            patient
-          );
-          
-          // Create the event in Google Calendar
-          await createCalendarEvent(calendarEvent);
-        }
-        
-        // Refresh the calendar events
-        fetchCalendarEvents();
+      if (appointmentData.id) {
+        // This is a reschedule - update the existing event
+        // Ensure the date is in the correct format before converting to calendar event
+        const formattedAppointment = {
+          ...appointmentData,
+          // Ensure date is in YYYY-MM-DD format without any time component
+          date: appointmentData.date.includes("T")
+            ? appointmentData.date.split("T")[0]
+            : appointmentData.date,
+        };
+
+        const calendarEvent = appointmentToCalendarEvent(
+          formattedAppointment,
+          patient
+        );
+
+        // Update the event in Google Calendar
+        await updateCalendarEvent(appointmentData.id, calendarEvent);
+
+        // Update the local state with consistent date format
+        setUpcomingAppointments((prev) =>
+          prev.map((apt) =>
+            apt.id === appointmentData.id
+              ? {
+                  ...formattedAppointment,
+                  patientName: patient.full_name,
+                  startDateTime: new Date(
+                    `${formattedAppointment.date}T${formattedAppointment.startTime}`
+                  ).getTime(),
+                }
+              : apt
+          )
+        );
+
+        // Show success message
+        setCancelSuccessMessage("Appointment rescheduled successfully");
+        setTimeout(() => setCancelSuccessMessage(null), 3000);
+      } else {
+        // This is a new appointment - create a new event
+        // Ensure the date is in the correct format before converting to calendar event
+        const formattedAppointment = {
+          ...appointmentData,
+          // Ensure date is in YYYY-MM-DD format without any time component
+          date: appointmentData.date.includes("T")
+            ? appointmentData.date.split("T")[0]
+            : appointmentData.date,
+        };
+
+        const calendarEvent = appointmentToCalendarEvent(
+          formattedAppointment,
+          patient
+        );
+
+        // Create the event in Google Calendar
+        await createCalendarEvent(calendarEvent);
       }
-      
-      // Close the appointment form
-      handleCloseAppointmentForm();
+
+      // Refresh the calendar events
+      fetchCalendarEvents();
     } catch (error) {
       console.error("Error saving appointment:", error);
-      setCancelErrorMessage('Failed to save appointment');
+      setCancelErrorMessage("Failed to save appointment");
       setTimeout(() => setCancelErrorMessage(null), 3000);
     }
   };
 
   const handleRescheduleAppointment = (appointment: Appointment) => {
+    console.log(appointment)
     // Ensure the date is in the correct format for the form (YYYY-MM-DD)
     // This is crucial because the date might have been parsed differently when fetched from Google Calendar
     const appointmentToEdit = {
       ...appointment,
       // Ensure date is in YYYY-MM-DD format
-      date: appointment.date.includes('T') 
-        ? appointment.date.split('T')[0] // Handle ISO format if present
+      date: appointment.date.includes("T")
+        ? appointment.date.split("T")[0] // Handle ISO format if present
         : appointment.date,
+      attendees: appointment.attendees,
     };
-    
+
     setAppointmentToEdit(appointmentToEdit);
     setIsNewAppointmentOpen(true);
   };
@@ -346,55 +340,6 @@ export default function DashboardPage() {
 
   return (
     <Grid container spacing={3}>
-      {/* Google Calendar Connection Prompt */}
-      {showCalendarPrompt && (
-        <Grid item xs={12}>
-          <Paper
-            elevation={3}
-            sx={{
-              p: 3,
-              mb: 3,
-              position: "relative",
-              display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              alignItems: "center",
-              justifyContent: "space-between",
-              bgcolor: "primary.main",
-              color: "primary.light",
-            }}
-          >
-            <Box sx={{ mb: { xs: 2, sm: 0 } }}>
-              <Typography variant="h6" gutterBottom>
-                Connect Your Google Calendar
-              </Typography>
-              <Typography variant="body2" color="primary.light">
-                You must connect your Google Calendar to use appointment
-                features. This enables scheduling with Google Meet links for
-                virtual sessions.
-              </Typography>
-            </Box>
-
-            <Button
-              variant="contained"
-              color="secondary"
-              startIcon={<GoogleIcon />}
-              onClick={handleConnectCalendar}
-              sx={{
-                px: 3,
-                py: 1,
-                bgcolor: "white",
-                color: "primary.main",
-                "&:hover": {
-                  bgcolor: "grey.100",
-                },
-              }}
-            >
-              Connect Calendar
-            </Button>
-          </Paper>
-        </Grid>
-      )}
-
       {/* Middle Column - Calendar */}
       <Grid item xs={12} md={9}>
         <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -403,28 +348,6 @@ export default function DashboardPage() {
             {calendarLoading ? (
               <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
                 <CircularProgress />
-              </Box>
-            ) : showCalendarPrompt ? (
-              <Box sx={{ textAlign: "center", p: 3 }}>
-                <Typography color="text.secondary" gutterBottom>
-                  Connect Google Calendar to manage appointments
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 2 }}
-                >
-                  You need to connect your Google Calendar to create and view
-                  appointments
-                </Typography>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<GoogleIcon />}
-                  onClick={handleConnectCalendar}
-                >
-                  Connect Google Calendar
-                </Button>
               </Box>
             ) : upcomingAppointments.length > 0 ? (
               <Box
@@ -479,7 +402,9 @@ export default function DashboardPage() {
                               variant="outlined"
                               color="warning"
                               startIcon={<EventIcon />}
-                              onClick={() => handleRescheduleAppointment(appointment)}
+                              onClick={() =>
+                                handleRescheduleAppointment(appointment)
+                              }
                               sx={{ fontSize: "0.75rem" }}
                             >
                               Reschedule
@@ -542,23 +467,31 @@ export default function DashboardPage() {
                                 {(() => {
                                   // Format the date consistently
                                   if (!appointment.date) return "No date";
-                                  
+
                                   try {
-                                    // Parse the date in YYYY-MM-DD format
-                                    const [year, month, day] = appointment.date.split('-').map(Number);
-                                    
+                                    // Parse the date in YYYY-MM-DD format without timezone shifts
+                                    // This approach ensures the date displayed is exactly as stored
+                                    const [year, month, day] = appointment.date
+                                      .split("-")
+                                      .map(Number);
+
                                     // Create a date object with the correct values
-                                    const date = new Date(year, month - 1, day);
+                                    // Use UTC date to prevent timezone shifts
+                                    const date = new Date(Date.UTC(year, month - 1, day));
                                     
                                     // Format the date in a user-friendly way
-                                    return new Intl.DateTimeFormat('en-US', {
-                                      weekday: 'short',
-                                      month: 'short',
-                                      day: 'numeric',
-                                      year: 'numeric'
+                                    return new Intl.DateTimeFormat("en-US", {
+                                      weekday: "short",
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                      timeZone: "UTC" // Use UTC to prevent timezone shifts
                                     }).format(date);
                                   } catch (error) {
-                                    console.error("Error formatting date:", error);
+                                    console.error(
+                                      "Error formatting date:",
+                                      error
+                                    );
                                     return appointment.date;
                                   }
                                 })()}
@@ -618,7 +551,6 @@ export default function DashboardPage() {
                   startIcon={<AddIcon />}
                   onClick={() => setIsNewAppointmentOpen(true)}
                   sx={{ mt: 2 }}
-                  disabled={showCalendarPrompt}
                 >
                   Schedule Appointment
                 </Button>
@@ -681,7 +613,6 @@ export default function DashboardPage() {
             startIcon={<EventIcon />}
             onClick={() => setIsNewAppointmentOpen(true)}
             sx={{ mb: 2 }}
-            disabled={showCalendarPrompt}
           >
             Schedule Appointment
           </Button>
@@ -709,7 +640,9 @@ export default function DashboardPage() {
         fullWidth
       >
         <DialogTitle>
-          {appointmentToEdit ? "Reschedule Appointment" : "Schedule New Appointment"}
+          {appointmentToEdit
+            ? "Reschedule Appointment"
+            : "Schedule New Appointment"}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
@@ -717,40 +650,26 @@ export default function DashboardPage() {
               onClose={handleCloseAppointmentForm}
               onSave={handleSaveAppointment}
               onAddPatient={() => setIsNewPatientOpen(true)}
-              appointment={appointmentToEdit || {
-                id: "",
-                patientId: "",
-                patientName: "",
-                date: new Date().toISOString().split("T")[0],
-                startTime: "",
-                endTime: "",
-                type: "Therapy Session",
-                duration: 60,
-                status: "scheduled",
-                notes: "",
-              }}
+              appointment={
+                appointmentToEdit || {
+                  id: "",
+                  patientId: "",
+                  patientName: "",
+                  date: new Date().toISOString().split("T")[0],
+                  startTime: "",
+                  endTime: "",
+                  type: "Therapy Session",
+                  duration: 60,
+                  status: "scheduled",
+                  notes: "",
+                }
+              }
             />
           </Box>
         </DialogContent>
       </Dialog>
 
       {/* Success Alert */}
-      <Snackbar
-        open={showSuccessAlert}
-        autoHideDuration={6000}
-        onClose={() => setShowSuccessAlert(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setShowSuccessAlert(false)}
-          severity="success"
-          sx={{ width: "100%" }}
-        >
-          Google Calendar connected successfully!
-        </Alert>
-      </Snackbar>
-
-      {/* Success Alert for Cancellation */}
       <Snackbar
         open={!!cancelSuccessMessage}
         autoHideDuration={6000}

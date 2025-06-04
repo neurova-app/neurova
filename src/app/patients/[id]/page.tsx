@@ -412,9 +412,9 @@ export default function PatientDetailPage() {
               >
                 Edit
               </Button>
-              <Typography variant="h6">{patient.fullName}</Typography>
+              <Typography variant="h6">{patient.fullName || "Not provided"}</Typography>
               <Typography variant="body2" color="text.secondary">
-                Patient ID: #{patient.id}
+                Patient ID: #{patient.id || "Not provided"}
               </Typography>
             </Box>
           </Box>
@@ -469,7 +469,7 @@ export default function PatientDetailPage() {
                         Full Name
                       </Typography>
                       <Typography variant="body1">
-                        {patient.fullName}
+                        {patient.fullName || "Not provided"}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -501,7 +501,7 @@ export default function PatientDetailPage() {
                         variant="body1"
                         sx={{ textTransform: "capitalize" }}
                       >
-                        {patient.gender}
+                        {patient.gender || "Not provided"}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -509,7 +509,7 @@ export default function PatientDetailPage() {
                         National ID (Cédula)
                       </Typography>
                       <Typography variant="body1">
-                        {patient.nationalId}
+                        {patient.nationalId || "Not provided"}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -517,7 +517,7 @@ export default function PatientDetailPage() {
                         Blood Type (RH)
                       </Typography>
                       <Typography variant="body1" sx={{ fontWeight: "medium" }}>
-                        {patient.bloodType}
+                        {patient.bloodType || "Not provided"}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -525,7 +525,7 @@ export default function PatientDetailPage() {
                         Marital Status
                       </Typography>
                       <Typography variant="body1">
-                        {patient.maritalStatus}
+                        {patient.maritalStatus || "Not provided"}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -533,7 +533,7 @@ export default function PatientDetailPage() {
                         Education Level
                       </Typography>
                       <Typography variant="body1">
-                        {patient.educationLevel}
+                        {patient.educationLevel || "Not provided"}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -541,7 +541,7 @@ export default function PatientDetailPage() {
                         Occupation
                       </Typography>
                       <Typography variant="body1">
-                        {patient.occupation}
+                        {patient.occupation || "Not provided"}
                       </Typography>
                     </Grid>
                   </Grid>
@@ -558,14 +558,16 @@ export default function PatientDetailPage() {
                         Phone Number
                       </Typography>
                       <Typography variant="body1">
-                        {patient.phoneNumber}
+                        {patient.phoneNumber || "Not provided"}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={6}>
                       <Typography variant="body2" color="text.secondary">
                         Email Address
                       </Typography>
-                      <Typography variant="body1">{patient.email}</Typography>
+                      <Typography variant="body1">
+                        {patient.email || "Not provided"}
+                      </Typography>
                     </Grid>
                   </Grid>
 
@@ -579,7 +581,7 @@ export default function PatientDetailPage() {
                           Name
                         </Typography>
                         <Typography variant="body1">
-                          {patient.emergencyContact.name}
+                          {patient.emergencyContact?.name || "Not provided"}
                         </Typography>
                       </Grid>
                       <Grid item xs={12} md={4}>
@@ -587,7 +589,7 @@ export default function PatientDetailPage() {
                           Relationship
                         </Typography>
                         <Typography variant="body1">
-                          {patient.emergencyContact.relationship}
+                          {patient.emergencyContact?.relationship || "Not provided"}
                         </Typography>
                       </Grid>
                       <Grid item xs={12} md={4}>
@@ -595,7 +597,7 @@ export default function PatientDetailPage() {
                           Phone Number
                         </Typography>
                         <Typography variant="body1">
-                          {patient.emergencyContact.phoneNumber}
+                          {patient.emergencyContact?.phoneNumber || "Not provided"}
                         </Typography>
                       </Grid>
                     </Grid>
@@ -620,19 +622,25 @@ export default function PatientDetailPage() {
                       <Typography variant="body2" color="text.secondary">
                         City
                       </Typography>
-                      <Typography variant="body1">{patient.city}</Typography>
+                      <Typography variant="body1">
+                        {patient.city || "Not provided"}
+                      </Typography>
                     </Grid>
                     <Grid item xs={12} md={3}>
                       <Typography variant="body2" color="text.secondary">
                         State
                       </Typography>
-                      <Typography variant="body1">{patient.state}</Typography>
+                      <Typography variant="body1">
+                        {patient.state || "Not provided"}
+                      </Typography>
                     </Grid>
                     <Grid item xs={12} md={3}>
                       <Typography variant="body2" color="text.secondary">
                         Country
                       </Typography>
-                      <Typography variant="body1">{patient.country}</Typography>
+                      <Typography variant="body1">
+                        {patient.country || "Not provided"}
+                      </Typography>
                     </Grid>
                   </Grid>
                 </Box>
@@ -683,19 +691,25 @@ export default function PatientDetailPage() {
                     >
                       Diagnoses
                     </Typography>
-                    {patient.diagnoses.map((diagnosis, index) => (
-                      <Box key={index} sx={{ mb: 2 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Diagnosis {index + 1}
-                        </Typography>
-                        <Typography
-                          variant="body1"
-                          sx={{ whiteSpace: "pre-line" }}
-                        >
-                          {diagnosis.description}
-                        </Typography>
-                      </Box>
-                    ))}
+                    {patient.diagnoses && patient.diagnoses.length > 0 ? (
+                      patient.diagnoses.map((diagnosis, index) => (
+                        <Box key={index} sx={{ mb: 2 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Diagnosis {index + 1}
+                          </Typography>
+                          <Typography
+                            variant="body1"
+                            sx={{ whiteSpace: "pre-line" }}
+                          >
+                            {diagnosis.description}
+                          </Typography>
+                        </Box>
+                      ))
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        Not provided
+                      </Typography>
+                    )}
                   </Box>
 
                   {/* Chronic Illnesses */}
@@ -708,10 +722,17 @@ export default function PatientDetailPage() {
                       Chronic Illnesses
                     </Typography>
                     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                      {patient.medicalHistory.chronicIllnesses.map(
-                        (illness, index) => (
-                          <Chip key={index} label={illness} />
-                        )
+                      {patient.medicalHistory.chronicIllnesses.length > 0 && 
+                       patient.medicalHistory.chronicIllnesses.some(illness => illness.trim() !== "") ? (
+                        patient.medicalHistory.chronicIllnesses
+                          .filter(illness => illness.trim() !== "")
+                          .map((illness, index) => (
+                            <Chip key={index} label={illness} />
+                          ))
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          Not provided
+                        </Typography>
                       )}
                     </Box>
                   </Box>
@@ -726,15 +747,22 @@ export default function PatientDetailPage() {
                       Allergies
                     </Typography>
                     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                      {patient.medicalHistory.allergies.map(
-                        (allergy, index) => (
-                          <Chip
-                            key={index}
-                            label={allergy}
-                            color="error"
-                            variant="outlined"
-                          />
-                        )
+                      {patient.medicalHistory.allergies.length > 0 && 
+                       patient.medicalHistory.allergies.some(allergy => allergy.trim() !== "") ? (
+                        patient.medicalHistory.allergies
+                          .filter(allergy => allergy.trim() !== "")
+                          .map((allergy, index) => (
+                            <Chip
+                              key={index}
+                              label={allergy}
+                              color="error"
+                              variant="outlined"
+                            />
+                          ))
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          Not provided
+                        </Typography>
                       )}
                     </Box>
                   </Box>
@@ -748,15 +776,22 @@ export default function PatientDetailPage() {
                     >
                       Current Medications
                     </Typography>
-                    <List dense>
-                      {patient.medicalHistory.currentMedications.map(
-                        (medication, index) => (
-                          <ListItem key={index}>
-                            <ListItemText primary={medication} />
-                          </ListItem>
-                        )
-                      )}
-                    </List>
+                    {patient.medicalHistory.currentMedications.length > 0 && 
+                     patient.medicalHistory.currentMedications.some(med => med.trim() !== "") ? (
+                      <List dense>
+                        {patient.medicalHistory.currentMedications
+                          .filter(med => med.trim() !== "")
+                          .map((medication, index) => (
+                            <ListItem key={index}>
+                              <ListItemText primary={medication} />
+                            </ListItem>
+                          ))}
+                      </List>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        Not provided
+                      </Typography>
+                    )}
                   </Box>
 
                   {/* Previous Treatments */}
@@ -768,18 +803,25 @@ export default function PatientDetailPage() {
                     >
                       Previous Treatments
                     </Typography>
-                    <List>
-                      {patient.medicalHistory.previousTreatments.map(
-                        (treatment, index) => (
-                          <ListItem key={index}>
-                            <ListItemText
-                              primary={treatment.treatmentType}
-                              secondary={`${treatment.therapistName} - ${treatment.duration}`}
-                            />
-                          </ListItem>
-                        )
-                      )}
-                    </List>
+                    {patient.medicalHistory.previousTreatments.length > 0 && 
+                     patient.medicalHistory.previousTreatments.some(t => t.therapistName.trim() !== "" || t.treatmentType.trim() !== "" || t.duration.trim() !== "") ? (
+                      <List>
+                        {patient.medicalHistory.previousTreatments
+                          .filter(t => t.therapistName.trim() !== "" || t.treatmentType.trim() !== "" || t.duration.trim() !== "")
+                          .map((treatment, index) => (
+                            <ListItem key={index}>
+                              <ListItemText
+                                primary={treatment.treatmentType || "Unknown treatment"}
+                                secondary={`${treatment.therapistName || "Unknown provider"}${treatment.duration ? ` - ${treatment.duration}` : ""}`}
+                              />
+                            </ListItem>
+                          ))}
+                      </List>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        Not provided
+                      </Typography>
+                    )}
                   </Box>
 
                   <Divider sx={{ my: 3 }} />
@@ -793,9 +835,15 @@ export default function PatientDetailPage() {
                     >
                       Family Medical History
                     </Typography>
-                    <Typography variant="body1">
-                      {patient.familyHistory}
-                    </Typography>
+                    {patient.familyHistory && patient.familyHistory.trim() !== "" ? (
+                      <Typography variant="body1">
+                        {patient.familyHistory}
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        Not provided
+                      </Typography>
+                    )}
                   </Box>
                 </Box>
               </Box>
@@ -896,18 +944,48 @@ export default function PatientDetailPage() {
                                       component="div"
                                       color="text.secondary"
                                     >
-                                      {session.date}
+                                      {(() => {
+                                        // Use session.date if available, otherwise fall back to created_at
+                                        const dateString = session.date || session.created_at;
+                                        if (!dateString) return "No date available";
+                                        
+                                        try {
+                                          // Handle date string in YYYY-MM-DD format to avoid timezone issues
+                                          if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                                            const [year, month, day] = dateString.split('-').map(Number);
+                                            // Create date with year, month (0-indexed), and day
+                                            const date = new Date(year, month - 1, day);
+                                            return date.toLocaleDateString('en-US', {
+                                              year: 'numeric',
+                                              month: 'long',
+                                              day: 'numeric'
+                                            });
+                                          }
+                                          
+                                          // For other date formats, use standard parsing
+                                          const date = new Date(dateString);
+                                          return date.toLocaleDateString('en-US', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                          });
+                                        } catch {
+                                          return dateString; // Fallback to original string if parsing fails
+                                        }
+                                      })()}
                                     </Typography>
                                   </Box>
                                 }
                                 secondary={
                                   <>
-                                    <Chip
-                                      label={session.type}
-                                      size="small"
-                                      color={getTypeColor(session.type)}
-                                      sx={{ my: 0.5, display: "inline-block" }}
-                                    />
+                                    <Box sx={{ display: "flex", alignItems: "center", my: 0.5 }}>
+                                      <Chip
+                                        label={session.type}
+                                        size="small"
+                                        color={getTypeColor(session.type)}
+                                        sx={{ display: "inline-flex" }}
+                                      />
+                                    </Box>
                                     <Box
                                       component="span"
                                       sx={{ display: "block", mt: 0.5 }}
