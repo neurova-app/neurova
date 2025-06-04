@@ -3,8 +3,21 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { User } from "@/types";
-import { supabase } from "@/utils/supabase";
-import { AuthError, User as SupabaseUser } from "@supabase/supabase-js";
+import {
+  auth,
+  googleProvider,
+} from "@/utils/firebase";
+import {
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  sendPasswordResetEmail,
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+} from "firebase/auth";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -12,18 +25,18 @@ interface AuthContextType {
   login: (
     email: string,
     password: string
-  ) => Promise<{ error: AuthError | null }>;
-  loginWithGoogle: () => Promise<{ error: AuthError | null }>;
+  ) => Promise<{ error: Error | null }>;
+  loginWithGoogle: () => Promise<{ error: Error | null }>;
   signup: (
     email: string,
     password: string,
     userData: Partial<User>
-  ) => Promise<{ error: AuthError | null }>;
+  ) => Promise<{ error: Error | null }>;
   logout: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
+  resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updateUserProfile: (
     userData: Partial<User>
-  ) => Promise<{ error: AuthError | null }>;
+  ) => Promise<{ error: Error | null }>;
   hasCalendarConnected: boolean;
 }
 
@@ -37,95 +50,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [hasCalendarConnected, setHasCalendarConnected] = useState(false);
 
-  // Convert Supabase user to our User type
-  const formatUser = (supabaseUser: SupabaseUser | null): User | null => {
-    if (!supabaseUser) return null;
+  // Convert Firebase user to our User type
+  const formatUser = (firebaseUser: FirebaseUser | null): User | null => {
+    if (!firebaseUser) return null;
 
-    // Check if user has Google provider and calendar permissions
-    const hasGoogleProvider =
-      supabaseUser.app_metadata?.providers?.includes("google");
-    const hasProviderToken = !!supabaseUser.app_metadata?.provider_token;
+    const name = firebaseUser.displayName || 'User';
+    const email = firebaseUser.email || '';
+    const avatar = firebaseUser.photoURL || undefined;
 
-    // If user has signed in with Google and has a provider token, they've granted calendar access
-    // We should automatically set the calendar_connected flag
-    if (
-      hasGoogleProvider &&
-      hasProviderToken &&
-      supabaseUser.user_metadata?.calendar_connected !== true
-    ) {
-      // Update user metadata to set calendar_connected flag
-      supabase.auth
-        .updateUser({
-          data: { calendar_connected: true },
-        })
-        .then(({ error }) => {
-          if (error) {
-            console.error("Error updating calendar_connected flag:", error);
-          } else {
-            console.log("Calendar connected flag set successfully");
-            setHasCalendarConnected(true);
-          }
-        });
-    }
-
-    // Set calendar connected state based on current metadata
-    const hasCalendarAccess =
-      supabaseUser.user_metadata?.calendar_connected === true;
-    setHasCalendarConnected(
-      hasGoogleProvider && (hasCalendarAccess || hasProviderToken)
+    // Check if Google provider is linked
+    const hasGoogleProvider = firebaseUser.providerData.some(
+      (p) => p.providerId === 'google.com'
     );
+    setHasCalendarConnected(hasGoogleProvider);
 
     return {
-      id: supabaseUser.id,
-      name: supabaseUser.user_metadata?.name || "User",
-      email: supabaseUser.email || "",
-      role: supabaseUser.user_metadata?.role || "user",
-      avatar: supabaseUser.user_metadata?.avatar_url,
+      id: firebaseUser.uid,
+      name,
+      email,
+      role: 'user',
+      avatar,
     };
   };
 
   useEffect(() => {
     // Check if user is authenticated with Supabase
-    const initializeAuth = async () => {
-      try {
-        // Get session
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        if (session) {
-          setIsAuthenticated(true);
-          setUser(formatUser(session.user));
-        } else {
-          setIsAuthenticated(false);
-          setUser(null);
-        }
-      } catch (error) {
-        console.error("Error checking authentication:", error);
-        setIsAuthenticated(false);
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initializeAuth();
-
-    // Set up auth state change listener
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session) {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
         setIsAuthenticated(true);
-        setUser(formatUser(session.user));
-      } else if (event === "SIGNED_OUT") {
+        setUser(formatUser(firebaseUser));
+      } else {
         setIsAuthenticated(false);
         setUser(null);
       }
+      setLoading(false);
     });
 
     return () => {
-      subscription.unsubscribe();
+      unsubscribe();
     };
   }, []);
 
@@ -149,44 +111,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (!error) {
-        router.push("/dashboard");
-      }
-
-      return { error };
-    } catch (error) {
+      await signInWithEmailAndPassword(auth, email, password);
+      router.push("/dashboard");
+      return { error: null };
+    } catch (error: unknown) {
       console.error("Login error:", error);
-      return { error: error as AuthError };
+      return { error: error as Error };
     }
   };
 
   const loginWithGoogle = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`,
-          scopes: "https://www.googleapis.com/auth/calendar.app.created",
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
-        },
-      });
-
-      if (error) {
-        console.error("Google login error:", error);
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        localStorage.setItem('googleAccessToken', credential.accessToken);
       }
-
-      return { error };
-    } catch (error) {
+      router.push("/dashboard");
+      return { error: null };
+    } catch (error: unknown) {
       console.error("Google login error:", error);
-      return { error: error as AuthError };
+      return { error: error as Error };
     }
   };
 
@@ -196,72 +141,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     userData: Partial<User>
   ) => {
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name: userData.name,
-            role: userData.role || "user",
-            avatar_url: userData.avatar,
-          },
-        },
-      });
-
-      if (!error) {
-        // Note: User will need to verify email before being fully authenticated
-        router.push("/login?verified=pending");
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      if (userData.name) {
+        await updateProfile(cred.user, {
+          displayName: userData.name,
+          photoURL: userData.avatar,
+        });
       }
-
-      return { error };
-    } catch (error) {
+      router.push("/dashboard");
+      return { error: null };
+    } catch (error: unknown) {
       console.error("Signup error:", error);
-      return { error: error as AuthError };
+      return { error: error as Error };
     }
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    await signOut(auth);
     router.push("/login");
   };
 
   const resetPassword = async (email: string) => {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      return { error };
-    } catch (error) {
+      await sendPasswordResetEmail(auth, email);
+      return { error: null };
+    } catch (error: unknown) {
       console.error("Reset password error:", error);
-      return { error: error as AuthError };
+      return { error: error as Error };
     }
   };
 
   const updateUserProfile = async (userData: Partial<User>) => {
+    if (!auth.currentUser) return { error: new Error('No user') };
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          name: userData.name ?? "",
-          role: userData.role ?? "",
-          avatar_url: userData.avatar ?? "",
-          calendar_connected: hasCalendarConnected,
-        },
+      await updateProfile(auth.currentUser, {
+        displayName: userData.name ?? auth.currentUser.displayName ?? '',
+        photoURL: userData.avatar ?? auth.currentUser.photoURL ?? '',
       });
 
-      if (!error && user) {
-        // Update the local user state with the new data
+      if (auth.currentUser && user) {
         setUser({
           ...user,
-          name: userData.name || user.name,
-          role: userData.role || user.role,
-          avatar: userData.avatar || user.avatar,
+          name: auth.currentUser.displayName || user.name,
+          avatar: auth.currentUser.photoURL || user.avatar,
         });
       }
 
-      return { error };
-    } catch (error) {
+      return { error: null };
+    } catch (error: unknown) {
       console.error("Update user profile error:", error);
-      return { error: error as AuthError };
+      return { error: error as Error };
     }
   };
 

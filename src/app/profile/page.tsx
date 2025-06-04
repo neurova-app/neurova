@@ -15,7 +15,7 @@ import {
   InputAdornment,
 } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
-import { therapistOperations } from '@/utils/supabase-db';
+import { therapistOperations } from '@/utils/firebase-db';
 import { useSnackbar } from 'notistack';
 import ProfilePictureUpload from '@/components/ProfilePictureUpload';
 

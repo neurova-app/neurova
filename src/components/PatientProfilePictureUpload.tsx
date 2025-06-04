@@ -10,7 +10,8 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { supabase } from "@/utils/supabase";
+import { storage } from "@/utils/firebase";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { usePatients } from "@/contexts/PatientContext";
 
 interface PatientProfilePictureUploadProps {
@@ -87,22 +88,9 @@ export default function PatientProfilePictureUpload({
       const fileExt = file.name.split(".").pop();
       const fileName = `patient-${patientId}-${Date.now()}.${fileExt}`;
 
-      // Upload directly to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from("patient-pics")
-        .upload(fileName, file, {
-          cacheControl: "3600",
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw new Error(uploadError.message);
-      }
-
-      // Get the public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("patient-pics").getPublicUrl(fileName);
+      const storageRef = ref(storage, `patient-pics/${fileName}`);
+      await uploadBytes(storageRef, file);
+      const publicUrl = await getDownloadURL(storageRef);
 
       console.log("New patient profile picture URL:", publicUrl);
       
@@ -110,31 +98,18 @@ export default function PatientProfilePictureUpload({
       if (currentImageUrl && currentImageUrl !== publicUrl) {
         try {
           // Extract the file path from the URL
-          const storageUrl = supabase.storage.from("patient-pics").getPublicUrl("").data.publicUrl;
-          let oldFileName = currentImageUrl;
-          
-          // Remove the storage URL part to get just the file path
-          if (oldFileName.startsWith(storageUrl)) {
-            oldFileName = oldFileName.substring(storageUrl.length);
-          }
-          
-          // If the filename starts with a slash, remove it
-          if (oldFileName.startsWith("/")) {
-            oldFileName = oldFileName.substring(1);
-          }
+          let oldFileName = decodeURIComponent(
+            currentImageUrl.split('/o/')[1]?.split('?')[0] || ''
+          );
           
           console.log("Attempting to delete old patient profile picture:", oldFileName);
           
           // Only attempt to delete if it looks like a valid filename
           if (oldFileName.includes(patientId)) {
-            const { error: deleteError } = await supabase.storage
-              .from("patient-pics")
-              .remove([oldFileName]);
-              
-            if (deleteError) {
-              console.error("Error deleting old patient profile picture:", deleteError);
-            } else {
-              console.log("Successfully deleted old patient profile picture");
+            try {
+              await deleteObject(ref(storage, `patient-pics/${oldFileName}`));
+            } catch (err) {
+              console.error('Error deleting old patient profile picture:', err);
             }
           }
         } catch (deleteError) {
@@ -187,29 +162,13 @@ export default function PatientProfilePictureUpload({
     setUploading(true);
     
     try {
-      // Extract the file path from the URL
-      const storageUrl = supabase.storage.from("patient-pics").getPublicUrl("").data.publicUrl;
-      let fileName = currentImageUrl;
-      
-      // Remove the storage URL part to get just the file path
-      if (fileName.startsWith(storageUrl)) {
-        fileName = fileName.substring(storageUrl.length);
-      }
-      
-      // If the filename starts with a slash, remove it
-      if (fileName.startsWith("/")) {
-        fileName = fileName.substring(1);
-      }
+      let fileName = decodeURIComponent(
+        currentImageUrl.split('/o/')[1]?.split('?')[0] || ''
+      );
       
       // Only attempt to delete if it looks like a valid filename
       if (fileName.includes(patientId)) {
-        const { error: deleteError } = await supabase.storage
-          .from("patient-pics")
-          .remove([fileName]);
-          
-        if (deleteError) {
-          throw new Error(deleteError.message);
-        }
+        await deleteObject(ref(storage, `patient-pics/${fileName}`));
         
         // Update the patient profile with empty profile picture
         await updatePatient(patientId, {

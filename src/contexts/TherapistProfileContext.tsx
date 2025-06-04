@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import { therapistOperations } from '@/utils/supabase-db';
+import { therapistOperations } from '@/utils/firebase-db';
 
 // Define the shape of the therapist profile data
 interface TherapistProfile {

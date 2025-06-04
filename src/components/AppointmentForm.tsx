@@ -17,7 +17,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { Appointment } from "@/types";
-import { supabase } from "@/utils/supabase";
+import { patientOperations } from "@/utils/firebase-db";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Patient {
@@ -73,46 +73,10 @@ export default function AppointmentForm({
 
     try {
       setLoading(true);
-
-      const { data: therapistData, error: therapistError } = await supabase
-        .from("therapists")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (therapistError) throw therapistError;
-
-      if (!therapistData) {
-        console.error("No therapist record found for current user");
-        setNoPatients(true);
-        return;
-      }
-
-      const { data: patientRelations, error: relationsError } = await supabase
-        .from("therapist_patients")
-        .select("patient_id")
-        .eq("therapist_id", therapistData.id);
-
-      if (relationsError) throw relationsError;
-
-      if (!patientRelations || patientRelations.length === 0) {
-        setNoPatients(true);
-        return;
-      }
-
-      const patientIds = patientRelations.map(
-        (relation) => relation.patient_id
-      );
-
-      const { data, error } = await supabase
-        .from("patients")
-        .select("id, full_name, email")
-        .in("id", patientIds);
-
-      if (error) throw error;
+      const data = await patientOperations.getPatients(user.id);
 
       if (data && data.length > 0) {
-        setPatients(data);
+        setPatients(data as Patient[]);
         setNoPatients(false);
 
         if (appointment.patientId) {

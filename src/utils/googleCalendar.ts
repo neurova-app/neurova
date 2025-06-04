@@ -1,6 +1,4 @@
-import { supabase } from "./supabase";
 import { Appointment } from "@/types";
-import { Session } from "@supabase/supabase-js";
 
 // Types for calendar events
 export interface CalendarEvent {
@@ -55,94 +53,11 @@ export interface PatientInfo {
 }
 
 // Extended Session type to include provider token expiry date
-interface ExtendedSession extends Session {
-  provider_token_expiry_date?: string;
-}
-
 /**
- * Gets a valid access token, refreshing if necessary
- * @returns A valid access token or null if not available
+ * Gets the stored Google access token from localStorage
  */
-async function getValidAccessToken(): Promise<string | null> {
-  try {
-    // Get the current session
-    const {
-      data: { session },
-      error: sessionError
-    } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      console.error("Error getting session:", sessionError);
-      // Force logout on session error
-      await supabase.auth.signOut();
-      window.location.href = '/login?expired=true';
-      return null;
-    }
-    
-    if (!session) {
-      console.error("No active session found");
-      // Redirect to login page
-      window.location.href = '/login?expired=true';
-      return null;
-    }
-    
-    // Cast to extended session type
-    const extendedSession = session as ExtendedSession;
-console.log("Extended session:", extendedSession)
-    // Check if provider token exists
-    if (!extendedSession.provider_token) {
-      console.error("No provider token found in session");
-      
-      // Force logout when provider token is missing
-      await supabase.auth.signOut();
-      window.location.href = '/login?expired=true';
-      return null;
-    }
-
-    // Only check expiration if we have an expiry date
-    if (extendedSession.provider_token_expiry_date) {
-      const expiryTime = new Date(extendedSession.provider_token_expiry_date).getTime();
-      const now = Date.now();
-      const timeUntilExpiry = expiryTime - now;
-      
-      // Log expiration details for debugging
-      console.log(`Token expires in ${Math.floor(timeUntilExpiry / 1000 / 60)} minutes`);
-      
-      // Only consider expired if it's actually expired (not just close to expiring)
-      if (now > expiryTime) {
-        console.log("Token is expired, logging out user...");
-        
-        // Try to refresh first
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-        
-        if (refreshError || !refreshData.session?.provider_token) {
-          console.error("Failed to refresh expired token:", refreshError);
-          // Force logout when refresh fails
-          await supabase.auth.signOut();
-          window.location.href = '/login?expired=true';
-          return null;
-        }
-        
-        console.log("Successfully refreshed expired token");
-        return refreshData.session.provider_token;
-      }
-    }
-
-    // Return the existing valid token
-    return extendedSession.provider_token;
-  } catch (error) {
-    console.error("Error getting valid access token:", error);
-    
-    // Force logout on any error
-    try {
-      await supabase.auth.signOut();
-      window.location.href = '/login?expired=true';
-    } catch (logoutError) {
-      console.error("Error during forced logout:", logoutError);
-    }
-    
-    return null;
-  }
+function getValidAccessToken(): string | null {
+  return localStorage.getItem('googleAccessToken');
 }
 
 /**
@@ -179,19 +94,7 @@ export async function createNeurovaCalendar(): Promise<string | null> {
     }
 
     const data = await response.json();
-
-    // Store the calendar ID in user metadata
-    const { error: updateError } = await supabase.auth.updateUser({
-      data: {
-        neurova_calendar_id: data.id,
-        calendar_connected: true,
-      },
-    });
-
-    if (updateError) {
-      console.error("Error updating user metadata:", updateError);
-    }
-
+    localStorage.setItem('neurovaCalendarId', data.id);
     return data.id;
   } catch (error) {
     console.error("Error creating Neurova calendar:", error);
@@ -203,26 +106,12 @@ export async function createNeurovaCalendar(): Promise<string | null> {
  * Gets the Neurova calendar ID from user metadata or creates a new one
  */
 export async function getNeurovaCalendarId(): Promise<string | null> {
-
   try {
-    // Get the current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      throw new Error("No authenticated user found");
-    }
-
-    // Check if the calendar ID is already stored in user metadata
-    const calendarId = user.user_metadata?.neurova_calendar_id;
-    if (calendarId) {
-      return calendarId;
-    }
-
-    // If not, create a new calendar
+    const stored = localStorage.getItem('neurovaCalendarId');
+    if (stored) return stored;
     return await createNeurovaCalendar();
   } catch (error) {
-    console.error("Error getting Neurova calendar ID:", error);
+    console.error('Error getting Neurova calendar ID:', error);
     return null;
   }
 }
