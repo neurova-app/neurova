@@ -32,7 +32,6 @@ import AppointmentForm from "@/components/AppointmentForm";
 import { Appointment } from "@/types";
 import { PatientDetailsForm } from "@/components/PatientDetailsForm";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/utils/supabase";
 import { usePatients } from "@/contexts/PatientContext";
 import {
   getCalendarEvents,
@@ -96,20 +95,7 @@ export default function DashboardPage() {
 
       // Since we're using Google-only auth, we can assume calendar is always connected
       // Just update user metadata if needed
-      const ensureCalendarConnected = async () => {
-        try {
-          // Update user metadata to set calendar_connected flag if not already set
-          await supabase.auth.updateUser({
-            data: {
-              calendar_connected: true,
-            },
-          });
-        } catch (error) {
-          console.error("Error updating user metadata:", error);
-        }
-      };
-
-      ensureCalendarConnected();
+      // Calendar integration handled by Google sign-in
 
       // Only fetch calendar events if they haven't been fetched already
       // This prevents duplicate fetches during the initial mount in StrictMode

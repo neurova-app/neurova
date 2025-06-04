@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback } from 'react';
-import { supabase } from '@/utils/supabase';
+import { sessionNoteOperations } from '@/utils/firebase-db';
 import { useAuth } from './AuthContext';
 import { OutputData } from '@editorjs/editorjs';
 
@@ -45,14 +45,7 @@ export function SessionNoteProvider({ children }: { children: React.ReactNode })
       setLoading(true);
       setError(null);
       
-      const { data, error } = await supabase
-        .from('session_notes')
-        .select('*')
-        .eq('patient_id', patientId)
-        .order('date', { ascending: false });
-      
-      if (error) throw error;
-      
+      const data = await sessionNoteOperations.getSessionNotes(user.id, patientId);
       setSessionNotes(data || []);
     } catch (err) {
       console.error('Error fetching session notes:', err);
@@ -69,18 +62,15 @@ export function SessionNoteProvider({ children }: { children: React.ReactNode })
       setLoading(true);
       setError(null);
       
-      const { data, error } = await supabase
-        .from('session_notes')
-        .insert(sessionNote)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      // Add the new session note to the state
+      const data = await sessionNoteOperations.createSessionNote(
+        user.id,
+        sessionNote.patient_id,
+        sessionNote
+      );
+
       setSessionNotes(prev => [data, ...prev]);
-      
-      return data;
+
+      return data as SessionNote;
     } catch (err) {
       console.error('Error creating session note:', err);
       setError('Failed to create session note. Please try again.');
@@ -97,21 +87,16 @@ export function SessionNoteProvider({ children }: { children: React.ReactNode })
       setLoading(true);
       setError(null);
       
-      const { data, error } = await supabase
-        .from('session_notes')
-        .update(sessionNote)
-        .eq('id', sessionNote.id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      // Update the session note in the state
-      setSessionNotes(prev => 
-        prev.map(note => note.id === data.id ? data : note)
+      const data = await sessionNoteOperations.updateSessionNote(
+        user.id,
+        sessionNote.patient_id,
+        sessionNote.id,
+        sessionNote
       );
-      
-      return data;
+
+      setSessionNotes(prev => prev.map(note => note.id === data.id ? data : note));
+
+      return data as SessionNote;
     } catch (err) {
       console.error('Error updating session note:', err);
       setError('Failed to update session note. Please try again.');
@@ -128,14 +113,12 @@ export function SessionNoteProvider({ children }: { children: React.ReactNode })
       setLoading(true);
       setError(null);
       
-      const { error } = await supabase
-        .from('session_notes')
-        .delete()
-        .eq('id', sessionNoteId);
-      
-      if (error) throw error;
-      
-      // Remove the session note from the state
+      await sessionNoteOperations.deleteSessionNote(
+        user.id,
+        sessionNotes.find(n => n.id === sessionNoteId)?.patient_id || '',
+        sessionNoteId
+      );
+
       setSessionNotes(prev => prev.filter(note => note.id !== sessionNoteId));
       
       return true;

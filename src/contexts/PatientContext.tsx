@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Patient } from '@/types/patient';
-import { patientOperations } from '@/utils/supabase-db';
+import { patientOperations } from '@/utils/firebase-db';
 import { useAuth } from './AuthContext';
 
 interface PatientContextType {
