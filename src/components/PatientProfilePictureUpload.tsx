@@ -162,7 +162,7 @@ export default function PatientProfilePictureUpload({
     setUploading(true);
     
     try {
-      let fileName = decodeURIComponent(
+      const fileName = decodeURIComponent(
         currentImageUrl.split('/o/')[1]?.split('?')[0] || ''
       );
       
