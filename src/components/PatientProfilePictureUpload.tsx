@@ -98,7 +98,7 @@ export default function PatientProfilePictureUpload({
       if (currentImageUrl && currentImageUrl !== publicUrl) {
         try {
           // Extract the file path from the URL
-          let oldFileName = decodeURIComponent(
+          const oldFileName = decodeURIComponent(
             currentImageUrl.split('/o/')[1]?.split('?')[0] || ''
           );
           
